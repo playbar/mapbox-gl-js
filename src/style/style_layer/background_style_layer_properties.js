@@ -8,6 +8,7 @@ const {
     Properties,
     DataConstantProperty,
     DataDrivenProperty,
+    CrossFadedDataDrivenProperty,
     CrossFadedProperty,
     HeatmapColorProperty
 } = require('../properties');

@@ -40,7 +40,9 @@ global.flowType = function (property) {
 };
 
 global.propertyType = function (property) {
-    if (isDataDriven(property)) {
+    if (isDataDriven(property) && /-pattern$/.test(property.name)) {
+        return `CrossFadedDataDrivenProperty<${flowType(property)}>`
+    } else if (isDataDriven(property)) {
         return `DataDrivenProperty<${flowType(property)}>`;
     } else if (/-pattern$/.test(property.name) || property.name === 'line-dasharray') {
         return `CrossFadedProperty<${flowType(property)}>`;
@@ -92,7 +94,9 @@ global.defaultValue = function (property) {
 };
 
 global.propertyValue = function (property, type) {
-    if (isDataDriven(property)) {
+    if (isDataDriven(property) && /-pattern$/.test(property.name)) {
+        return `new CrossFadedDataDrivenProperty(styleSpec["${type}_${property.layerType}"]["${property.name}"])`;
+    } else if (isDataDriven(property)) {
         return `new DataDrivenProperty(styleSpec["${type}_${property.layerType}"]["${property.name}"])`;
     } else if (/-pattern$/.test(property.name) || property.name === 'line-dasharray') {
         return `new CrossFadedProperty(styleSpec["${type}_${property.layerType}"]["${property.name}"])`;
