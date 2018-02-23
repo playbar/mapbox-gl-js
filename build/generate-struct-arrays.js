@@ -126,12 +126,17 @@ const layoutAttributes = {
     circle: require('../src/data/bucket/circle_attributes'),
     fill: require('../src/data/bucket/fill_attributes'),
     'fill-extrusion': require('../src/data/bucket/fill_extrusion_attributes'),
-    heatmap: require('../src/data/bucket/circle_attributes'),
-    line: require('../src/data/bucket/line_attributes')
+    heatmap: require('../src/data/bucket/circle_attributes')
 };
 for (const name in layoutAttributes) {
     createStructArrayType(`${name.replace(/-/g, '_')}_layout`, layoutAttributes[name]);
 }
+
+const lineAttributes = require('../src/data/bucket/line_attributes');
+createStructArrayType(`line_layout`, lineAttributes.lineLayoutAttributes);
+createStructArrayType(`line_pattern_source_expression_layout`, lineAttributes.linePatternSourceExpressionLayout);
+createStructArrayType(`line_pattern_composite_expression_layout`, lineAttributes.linePatternCompositeExpressionLayout);
+
 
 // symbol layer specific arrays
 const symbolAttributes = require('../src/data/bucket/symbol_attributes');

@@ -1,7 +1,8 @@
 // @flow
 
 const {LineLayoutArray} = require('../array_types');
-const layoutAttributes = require('./line_attributes').members;
+const {lineLayoutAttributes, dynamicLineAttributes} = require('./line_attributes');
+const layoutAttributes = lineLayoutAttributes.members;
 const {SegmentVector} = require('../segment');
 const {ProgramConfigurationSet} = require('../program_configuration');
 const {TriangleIndexArray} = require('../index_array_type');
