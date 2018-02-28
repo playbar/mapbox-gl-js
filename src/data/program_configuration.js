@@ -345,6 +345,11 @@ class ProgramConfiguration {
     setUniforms<Properties: Object>(context: Context, program: Program, properties: PossiblyEvaluated<Properties>, globals: GlobalProperties) {
         for (const property in this.binders) {
             const binder = this.binders[property];
+
+            // patterns require more state than the binders currently manage, and more than one
+            // uniform vector, so we manage the uniform bindings in the main render code.
+            if (property.match(/pattern/)) continue;
+
             binder.setUniforms(context, program, globals, properties.get(property));
         }
     }
@@ -425,7 +430,8 @@ function paintAttributeName(property, type) {
         'icon-halo-blur': 'halo_blur',
         'text-halo-width': 'halo_width',
         'icon-halo-width': 'halo_width',
-        'line-gap-width': 'gapwidth'
+        'line-gap-width': 'gapwidth',
+        'line-pattern': ['pattern_a', 'pattern_b', 'pattern_size']
     };
     return [attributeNameExceptions[property] ||
         property.replace(`${type}-`, '').replace(/-/g, '_')];

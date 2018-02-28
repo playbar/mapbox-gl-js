@@ -1,9 +1,3 @@
-uniform vec2 u_pattern_size_a;
-uniform vec2 u_pattern_size_b;
-uniform vec2 u_pattern_tl_a;
-uniform vec2 u_pattern_br_a;
-uniform vec2 u_pattern_tl_b;
-uniform vec2 u_pattern_br_b;
 uniform vec2 u_texsize;
 uniform float u_fade;
 
@@ -14,12 +8,25 @@ varying vec2 v_width2;
 varying float v_linesofar;
 varying float v_gamma_scale;
 
+#pragma mapbox: define mediump vec4 pattern_size
+#pragma mapbox: define mediump vec4 pattern_a
+#pragma mapbox: define mediump vec4 pattern_b
 #pragma mapbox: define lowp float blur
 #pragma mapbox: define lowp float opacity
 
 void main() {
+    #pragma mapbox: initialize mediump vec4 pattern_size
+    #pragma mapbox: initialize mediump vec4 pattern_a
+    #pragma mapbox: initialize mediump vec4 pattern_b
     #pragma mapbox: initialize lowp float blur
     #pragma mapbox: initialize lowp float opacity
+
+    vec2 u_pattern_tl_a = pattern_a.xy;
+    vec2 u_pattern_br_a = pattern_a.zw;
+    vec2 u_pattern_tl_b = pattern_b.xy;
+    vec2 u_pattern_br_b = pattern_b.zw;
+    vec2 u_pattern_size_a = pattern_size.xy;
+    vec2 u_pattern_size_b = pattern_size.zw;
 
     // Calculate the distance of the pixel from the line in pixels.
     float dist = length(v_normal) * v_width2.s;

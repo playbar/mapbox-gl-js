@@ -17,13 +17,13 @@ module.exports = function drawLine(painter: Painter, sourceCache: SourceCache, l
     if (opacity.constantOr(1) === 0) return;
 
     const context = painter.context;
-
     context.setDepthMode(painter.depthModeForSublayer(0, DepthMode.ReadOnly));
     context.setColorMode(painter.colorModeForRenderPass());
 
+    const linePattern = layer.paint.get('line-pattern');
     const programId =
         layer.paint.get('line-dasharray') ? 'lineSDF' :
-        layer.paint.get('line-pattern') ? 'linePattern' : 'line';
+        linePattern && linePattern.evaluate() ? 'linePattern' : 'line';
 
     let prevTileZoom;
     let firstTile = true;
@@ -52,7 +52,8 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
     const context = painter.context;
     const gl = context.gl;
     const dasharray = layer.paint.get('line-dasharray');
-    const image = layer.paint.get('line-pattern');
+    const linePattern = layer.paint.get('line-pattern');
+    const image = linePattern && linePattern.evaluate();
 
     let posA, posB, imagePosA, imagePosB;
 
@@ -71,12 +72,11 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
             gl.uniform1f(program.uniforms.u_sdfgamma, painter.lineAtlas.width / (Math.min(widthA, widthB) * 256 * browser.devicePixelRatio) / 2);
 
         } else if (image) {
+
             imagePosA = painter.imageManager.getPattern(image.from);
             imagePosB = painter.imageManager.getPattern(image.to);
             if (!imagePosA || !imagePosB) return;
-
-            gl.uniform2f(program.uniforms.u_pattern_size_a, imagePosA.displaySize[0] * image.fromScale / tileRatio, imagePosA.displaySize[1]);
-            gl.uniform2f(program.uniforms.u_pattern_size_b, imagePosB.displaySize[0] * image.toScale / tileRatio, imagePosB.displaySize[1]);
+            gl.uniform4f(program.uniforms.u_pattern_size, imagePosA.displaySize[0] * image.fromScale / tileRatio, imagePosA.displaySize[1], imagePosB.displaySize[0] * image.toScale / tileRatio, imagePosB.displaySize[1]);
 
             const {width, height} = painter.imageManager.getPixelSize();
             gl.uniform2fv(program.uniforms.u_texsize, [width, height]);
@@ -100,11 +100,8 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
             gl.uniform1i(program.uniforms.u_image, 0);
             context.activeTexture.set(gl.TEXTURE0);
             painter.imageManager.bind(context);
-
-            gl.uniform2fv(program.uniforms.u_pattern_tl_a, (imagePosA: any).tl);
-            gl.uniform2fv(program.uniforms.u_pattern_br_a, (imagePosA: any).br);
-            gl.uniform2fv(program.uniforms.u_pattern_tl_b, (imagePosB: any).tl);
-            gl.uniform2fv(program.uniforms.u_pattern_br_b, (imagePosB: any).br);
+            gl.uniform4fv(program.uniforms.u_pattern_a, (imagePosA: any).tl.concat((imagePosA: any).br));
+            gl.uniform4fv(program.uniforms.u_pattern_b, (imagePosB: any).tl.concat((imagePosB: any).br));
             gl.uniform1f(program.uniforms.u_fade, image.t);
         }
     }

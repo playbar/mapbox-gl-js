@@ -31,6 +31,9 @@ varying float v_gamma_scale;
 #pragma mapbox: define lowp float offset
 #pragma mapbox: define mediump float gapwidth
 #pragma mapbox: define mediump float width
+#pragma mapbox: define mediump vec4 pattern_size
+#pragma mapbox: define mediump vec4 pattern_a
+#pragma mapbox: define mediump vec4 pattern_b
 
 void main() {
     #pragma mapbox: initialize lowp float blur
@@ -38,6 +41,9 @@ void main() {
     #pragma mapbox: initialize lowp float offset
     #pragma mapbox: initialize mediump float gapwidth
     #pragma mapbox: initialize mediump float width
+    #pragma mapbox: initialize mediump vec4 pattern_size
+    #pragma mapbox: initialize mediump vec4 pattern_a
+    #pragma mapbox: initialize mediump vec4 pattern_b
 
     vec2 a_extrude = a_data.xy - 128.0;
     float a_direction = mod(a_data.z, 4.0) - 1.0;
