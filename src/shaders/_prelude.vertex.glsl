@@ -48,10 +48,21 @@ float unpack_mix_vec2(const vec2 packedValue, const float t) {
 }
 
 // Unpack a pair of paint values and interpolate between them.
-vec4 unpack_mix_vec4(const vec4 packedColors, const float t) {
+vec4 unpack_mix_color(const vec4 packedColors, const float t) {
     vec4 minColor = decode_color(vec2(packedColors[0], packedColors[1]));
     vec4 maxColor = decode_color(vec2(packedColors[2], packedColors[3]));
     return mix(minColor, maxColor, t);
+}
+
+vec4 unpack_mix_vec4(const vec4 packedFloats, const float t) {
+    vec2 minTl = unpack_float(packedFloats[0]);
+    vec2 minBr = unpack_float(packedFloats[1]);
+    vec2 maxTl = unpack_float(packedFloats[2]);
+    vec2 maxBr = unpack_float(packedFloats[3]);
+
+    vec2 tl = mix(minTl, maxTl, t);
+    vec2 br = mix(minBr, maxBr, t);
+    return vec4(tl, br);
 }
 
 // The offset depends on how many pixels are between the world origin and the edge of the tile:
