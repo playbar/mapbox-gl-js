@@ -5,6 +5,7 @@ const {performSymbolLayout} = require('../symbol/symbol_layout');
 const {CollisionBoxArray} = require('../data/array_types');
 const DictionaryCoder = require('../util/dictionary_coder');
 const SymbolBucket = require('../data/bucket/symbol_bucket');
+const LineBucket = require('../data/bucket/line_bucket');
 const util = require('../util/util');
 const assert = require('assert');
 const {makeImageAtlas} = require('../render/image_atlas');
@@ -159,6 +160,9 @@ class WorkerTile {
                     if (bucket instanceof SymbolBucket) {
                         recalculateLayers(bucket.layers, this.zoom);
                         performSymbolLayout(bucket, glyphMap, glyphAtlas.positions, imageMap, imageAtlas.positions, this.showCollisionBoxes);
+                    } else if (bucket instanceof LineBucket && bucket.dataDrivenPattern) {
+                        recalculateLayers(bucket.layers, this.zoom);
+                        bucket.addPatternFeatures(options, imageMap, imageAtlas.positions);
                     }
                 }
 
