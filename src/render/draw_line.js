@@ -53,7 +53,7 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
     const gl = context.gl;
     const dasharray = layer.paint.get('line-dasharray');
     const linePattern = layer.paint.get('line-pattern');
-    const image = linePattern && (linePattern.value.kind === "constant" || linePattern.value.kind === "camera" ) ? linePattern.value.value : undefined;
+    const image = linePattern && linePattern.evaluate();
 
     let posA, posB, imagePosA, imagePosB;
 
@@ -70,12 +70,13 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
             gl.uniform2f(program.uniforms.u_patternscale_a, tileRatio / widthA, -posA.height / 2);
             gl.uniform2f(program.uniforms.u_patternscale_b, tileRatio / widthB, -posB.height / 2);
             gl.uniform1f(program.uniforms.u_sdfgamma, painter.lineAtlas.width / (Math.min(widthA, widthB) * 256 * browser.devicePixelRatio) / 2);
-
-        } else if (bucket.dataDrivenPattern) {
+        } else if (bucket.dataDrivenPattern && image) {
             const size = tile.iconAtlasTexture.size;
             gl.uniform2fv(program.uniforms.u_texsize, size);
-        } else if (image) {
 
+            const evaluated = linePattern.evaluate();
+            gl.uniform4f(program.uniforms.u_scale, browser.devicePixelRatio > 1 ? 2 : 1, tileRatio, image.fromScale, image.toScale);
+        } else if (image) {
             imagePosA = painter.imageManager.getPattern(image.from);
             imagePosB = painter.imageManager.getPattern(image.to);
             if (!imagePosA || !imagePosB) return;
@@ -83,9 +84,6 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
 
             const {width, height} = painter.imageManager.getPixelSize();
             gl.uniform2fv(program.uniforms.u_texsize, [width, height]);
-        } else if (bucket.dataDrivenPattern) {
-            const size = tile.iconAtlasTexture.size;
-            gl.uniform2fv(program.uniforms.u_texsize, size);
         }
 
         gl.uniform2f(program.uniforms.u_gl_units_to_pixels, 1 / painter.transform.pixelsToGLUnits[0], 1 / painter.transform.pixelsToGLUnits[1]);
@@ -100,14 +98,12 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
             gl.uniform1f(program.uniforms.u_tex_y_a, (posA: any).y);
             gl.uniform1f(program.uniforms.u_tex_y_b, (posB: any).y);
             gl.uniform1f(program.uniforms.u_mix, dasharray.t);
-        } else if (bucket.dataDrivenPattern) {
+        } else if (bucket.dataDrivenPattern && image) {
             gl.uniform1i(program.uniforms.u_image, 0);
             context.activeTexture.set(gl.TEXTURE0);
             tile.iconAtlasTexture.bind(gl.NEAREST, gl.CLAMP_TO_EDGE);
 
-            const evaluated = linePattern.evaluate();
-            gl.uniform1f(program.uniforms.u_fade, evaluated.t);
-            gl.uniform4f(program.uniforms.u_scale, 1, tileRatio, evaluated.fromScale, evaluated.toScale);
+            gl.uniform1f(program.uniforms.u_fade, image.t);
         } else if (image) {
             gl.uniform1i(program.uniforms.u_image, 0);
             context.activeTexture.set(gl.TEXTURE0);
@@ -115,12 +111,6 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
             gl.uniform4fv(program.uniforms.u_pattern_a, (imagePosA: any).tl.concat((imagePosA: any).br));
             gl.uniform4fv(program.uniforms.u_pattern_b, (imagePosB: any).tl.concat((imagePosB: any).br));
             gl.uniform1f(program.uniforms.u_fade, image.t);
-        } else if (bucket.dataDrivenPattern) {
-            gl.uniform1i(program.uniforms.u_image, 0);
-            context.activeTexture.set(gl.TEXTURE0);
-            tile.iconAtlasTexture.bind(gl.NEAREST, gl.CLAMP_TO_EDGE);
-            gl.uniform1f(program.uniforms.u_fade, 1);
-
         }
     }
 
