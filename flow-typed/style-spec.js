@@ -194,7 +194,7 @@ declare type LineLayerSpecification = {|
         "line-offset"?: DataDrivenPropertyValueSpecification<number>,
         "line-blur"?: DataDrivenPropertyValueSpecification<number>,
         "line-dasharray"?: PropertyValueSpecification<Array<number>>,
-        "line-pattern"?: PropertyValueSpecification<string>
+        "line-pattern"?: DataDrivenPropertyValueSpecification<string>
     |}
 |}
 

@@ -7,7 +7,6 @@ const lineLayoutAttributes = createLayout([
 ], 4);
 
 // these attributes are only needed if using data-driven line-pattern
-// todo: pack these attributes tighter
 const linePatternSourceExpressionLayout = createLayout([
     // [tl.x, tl.y, br.x, br.y]
     {name: 'a_pattern_a',  components: 2, type: 'Float32'},

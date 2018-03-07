@@ -585,7 +585,7 @@ class DataDrivenProperty<T> implements Property<T, PossiblyEvaluatedPropertyValu
 class CrossFadedDataDrivenProperty extends DataDrivenProperty<string> {
     possiblyEvaluate(value: PropertyValue<T, PossiblyEvaluatedPropertyValue<T>>, parameters: EvaluationParameters): PossiblyEvaluatedPropertyValue<T> {
         if (value.value === undefined) {
-            return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: undefined}, parameters);;
+            return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: undefined}, parameters);
         } else if (value.expression.kind === 'constant') {
             const constant = value.expression.evaluate(parameters);
             return new PossiblyEvaluatedPropertyValue(this, {kind: 'constant', value: this._calculate(constant, constant, constant, parameters)}, parameters);
