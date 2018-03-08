@@ -2,22 +2,77 @@
   "version": 8,
   "metadata": {
     "test": {
-      "height": 256
+      "height": 128,
+      "width": 128
     }
   },
-  "center": [
-    13.418056,
-    52.499167
-  ],
-  "zoom": 14,
+  "zoom": 2,
   "sprite": "local://sprites/emerald",
   "sources": {
-    "mapbox": {
-      "type": "vector",
-      "maxzoom": 14,
-      "tiles": [
-        "local://tiles/{z}-{x}-{y}.mvt"
-      ]
+    "a": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "class": "street"
+            },
+            "geometry": {
+              "type": "LineString",
+              "coordinates": [
+                [
+                  10,
+                  -10
+                ],
+                [
+                  -10,
+                  -10
+                ]
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "class": "path"
+            },
+            "geometry": {
+              "type": "LineString",
+              "coordinates": [
+                [
+                  -10,
+                  0
+                ],
+                [
+                  10,
+                  0
+                ]
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "class": "street"
+            },
+            "geometry": {
+              "type": "LineString",
+              "coordinates": [
+                [
+                  -10,
+                  10
+                ],
+                [
+                  10,
+                  10
+                ]
+              ]
+            }
+          }
+        ]
+      }
     }
   },
   "layers": [
@@ -31,8 +86,7 @@
     {
       "id": "road",
       "type": "line",
-      "source": "mapbox",
-      "source-layer": "road",
+      "source": "a",
       "paint": {
         "line-width": 10,
         "line-pattern": ["case", ["==", ["get", "class"], "street"], "generic_icon", "generic_metro" ]
