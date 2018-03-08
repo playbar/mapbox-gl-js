@@ -466,7 +466,7 @@ function layoutType(property, type, binderType) {
         }
     };
 
-    const layoutException = getLayoutException(property, binderType);
+    const layoutException = getLayoutException(property);
     return  layoutException && layoutException[binderType] ||
         defaultLayouts[type][binderType];
 }
@@ -479,5 +479,7 @@ register('ProgramConfigurationSet', ProgramConfigurationSet);
 
 module.exports = {
     ProgramConfiguration,
-    ProgramConfigurationSet
+    ProgramConfigurationSet,
+    CompositeExpressionBinder,
+    SourceExpressionBinder
 };

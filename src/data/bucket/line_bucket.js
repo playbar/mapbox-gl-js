@@ -4,7 +4,7 @@ const {LineLayoutArray} = require('../array_types');
 const {lineLayoutAttributes} = require('./line_attributes');
 const layoutAttributes = lineLayoutAttributes.members;
 const {SegmentVector} = require('../segment');
-const {ProgramConfigurationSet} = require('../program_configuration');
+const {ProgramConfigurationSet, SourceExpressionBinder, CompositeExpressionBinder} = require('../program_configuration');
 const {TriangleIndexArray} = require('../index_array_type');
 const loadGeometry = require('../load_geometry');
 const EXTENT = require('../extent');
@@ -26,7 +26,8 @@ import type Context from '../../gl/context';
 import type IndexBuffer from '../../gl/index_buffer';
 import type VertexBuffer from '../../gl/vertex_buffer';
 import type {CrossFaded} from '../../style/cross_faded';
-
+import type {StyleImage} from '../../style/style_image';
+import type {ImagePosition} from '../../render/image_atlas';
 
 export type LineFeature = {|
     image: ?CrossFaded<string>,
@@ -34,7 +35,7 @@ export type LineFeature = {|
     sourceLayerIndex: number,
     geometry: Array<Array<Point>>,
     properties: Object,
-    type: number,
+    type: 1 | 2 | 3,
     id?: any
 |};
 
@@ -115,6 +116,9 @@ class LineBucket implements Bucket {
     indexArray: TriangleIndexArray;
     indexBuffer: IndexBuffer;
 
+    imageMap: {[string]: StyleImage};
+    imagePositions: {[string]: ImagePosition};
+
     programConfigurations: ProgramConfigurationSet<LineStyleLayer>;
     segments: SegmentVector;
     uploaded: boolean;
@@ -159,7 +163,7 @@ class LineBucket implements Bucket {
                     icons[image.from] = true;
                     icons[image.to] = true;
                 }
-                const geometry = loadGeometry(feature)
+                const geometry = loadGeometry(feature);
                 const lineFeature: LineFeature = {
                     image: image,
                     sourceLayerIndex: sourceLayerIndex,
@@ -184,13 +188,12 @@ class LineBucket implements Bucket {
     }
 
     // used if line-pattern is data-driven
-    addPatternFeatures(options, imageMap, imagePositions) {
+    addPatternFeatures(options: PopulateParameters, imageMap: {[string]: StyleImage}, imagePositions: {[string]: ImagePosition}) {
         this.imageMap = imageMap;
         this.imagePositions = imagePositions;
         for (const feature of this.features) {
-            const {geometry, index, sourceLayerIndex} = feature;
+            const {geometry} = feature;
             this.addFeature(feature, geometry);
-            // options.featureIndex.insert(feature, geometry, index, sourceLayerIndex, this.index);
         }
     }
 
@@ -212,7 +215,7 @@ class LineBucket implements Bucket {
         this.segments.destroy();
     }
 
-    addFeature(feature: VectorTileFeature, geometry: Array<Array<Point>>) {
+    addFeature(feature: VectorTileFeature | LineFeature, geometry: Array<Array<Point>>) {
         const layout = this.layers[0].layout;
         const join = layout.get('line-join').evaluate(feature);
         const cap = layout.get('line-cap');
@@ -224,7 +227,7 @@ class LineBucket implements Bucket {
         }
     }
 
-    addLine(vertices: Array<Point>, feature: VectorTileFeature, join: string, cap: string, miterLimit: number, roundLimit: number) {
+    addLine(vertices: Array<Point>, feature: VectorTileFeature | LineFeature, join: string, cap: string, miterLimit: number, roundLimit: number) {
         const isPolygon = vectorTileFeatureTypes[feature.type] === 'Polygon';
 
         // If the line has duplicate vertices at the ends, adjust start/length to remove them.
@@ -491,16 +494,16 @@ class LineBucket implements Bucket {
         if (this.dataDrivenPattern) this.populatePatternPaintArray(this.layoutVertexArray.length, feature);
     }
 
-    populatePatternPaintArray(length, feature) {
-        for (const key in this.programConfigurations) {
-            const programConfig = this.programConfigurations[key];
-            for (const layer in programConfig) {
-                if (programConfig[layer].binders && programConfig[layer].binders['line-pattern'] && programConfig[layer].binders['line-pattern'].paintVertexArray) {
-                    const paintArray = programConfig[layer].binders['line-pattern'].paintVertexArray;
-                    const start = paintArray.length;
+    populatePatternPaintArray(length: number, feature: VectorTileFeature | LineFeature) {
+        for (const layer of this.layers) {
+            const programConfiguration = this.programConfigurations.get(layer.id);
+            if (programConfiguration.binders && programConfiguration.binders['line-pattern'] && (programConfiguration.binders['line-pattern'] instanceof SourceExpressionBinder || programConfiguration.binders['line-pattern'] instanceof CompositeExpressionBinder)) {
+                const paintArray = programConfiguration.binders['line-pattern'].paintVertexArray;
+                const start = paintArray.length;
 
-                    paintArray.reserve(length);
-                    const image = feature.image;
+                paintArray.reserve(length);
+                if (feature.image) {
+                    const image = (feature.image: any);
                     const imagePosA = this.imagePositions[image.from];
                     const imagePosB = this.imagePositions[image.to];
 
