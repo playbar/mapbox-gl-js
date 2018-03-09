@@ -54,15 +54,10 @@ vec4 unpack_mix_color(const vec4 packedColors, const float t) {
     return mix(minColor, maxColor, t);
 }
 
-vec4 unpack_mix_vec4(const vec4 packedFloats, const float t) {
-    vec2 minTl = unpack_float(packedFloats[0]);
-    vec2 minBr = unpack_float(packedFloats[1]);
-    vec2 maxTl = unpack_float(packedFloats[2]);
-    vec2 maxBr = unpack_float(packedFloats[3]);
-
-    vec2 tl = mix(minTl, maxTl, t);
-    vec2 br = mix(minBr, maxBr, t);
-    return vec4(tl, br);
+vec4 unpack_mix_vec4(const vec4 patternVertices, const float t) {
+    // line pattern location vertices are not packed, and they use a different t
+    // for interpolation that is specific to cross-faded properties
+    return patternVertices;
 }
 
 // The offset depends on how many pixels are between the world origin and the edge of the tile:

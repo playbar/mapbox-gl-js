@@ -54,8 +54,8 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
     const dasharray = layer.paint.get('line-dasharray');
     const linePattern = layer.paint.get('line-pattern');
     const image = linePattern && linePattern.value.kind === "constant" ? linePattern.value.value : null;
-    let posA, posB, imagePosA, imagePosB;
-
+    const crossfade = layer.getCrossfadeParameters();
+    let posA, posB, imagePosMid, imagePosMin, imagePosMax;
     const tileRatio = 1 / pixelsToTileUnits(tile, 1, painter.transform.tileZoom);
     if (programChanged || tileRatioChanged) {
         if (dasharray) {
@@ -69,17 +69,14 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
             gl.uniform2f(program.uniforms.u_patternscale_b, tileRatio / widthB, -posB.height / 2);
             gl.uniform1f(program.uniforms.u_sdfgamma, painter.lineAtlas.width / (Math.min(widthA, widthB) * 256 * browser.devicePixelRatio) / 2);
         } else if (image) {
-            imagePosA = painter.imageManager.getPattern(image.from);
-            imagePosB = painter.imageManager.getPattern(image.to);
-            if (!imagePosA || !imagePosB) return;
-            gl.uniform4f(program.uniforms.u_scale, imagePosA.pixelRatio, tileRatio, image.fromScale, image.toScale);
-
+            imagePosMin = painter.imageManager.getPattern(image.min);
+            imagePosMid = painter.imageManager.getPattern(image.mid);
+            imagePosMax = painter.imageManager.getPattern(image.max);
+            if (!imagePosMin || !imagePosMid || !imagePosMax) return;
+            // this assumes all images in the icon atlas texture have the same pixel ratio
+            gl.uniform4f(program.uniforms.u_scale, imagePosMid.pixelRatio, tileRatio, image.fromScale, image.toScale);
             const {width, height} = painter.imageManager.getPixelSize();
             gl.uniform2fv(program.uniforms.u_texsize, [width, height]);
-        } else if (bucket.dataDrivenPattern) {
-            const size = tile.iconAtlasTexture.size;
-            gl.uniform2fv(program.uniforms.u_texsize, size);
-            gl.uniform4f(program.uniforms.u_scale, browser.devicePixelRatio > 1 ? 2 : 1, tileRatio, 2, 1);
         }
 
         gl.uniform2f(program.uniforms.u_gl_units_to_pixels, 1 / painter.transform.pixelsToGLUnits[0], 1 / painter.transform.pixelsToGLUnits[1]);
@@ -98,15 +95,23 @@ function drawLineTile(program, painter, tile, bucket, layer, coord, programConfi
             gl.uniform1i(program.uniforms.u_image, 0);
             context.activeTexture.set(gl.TEXTURE0);
             painter.imageManager.bind(context);
-            gl.uniform4fv(program.uniforms.u_pattern_a, (imagePosA: any).tl.concat((imagePosA: any).br));
-            gl.uniform4fv(program.uniforms.u_pattern_b, (imagePosB: any).tl.concat((imagePosB: any).br));
+            gl.uniform4fv(program.uniforms.u_pattern_min, (imagePosMin: any).tl.concat((imagePosMin: any).br));
+            gl.uniform4fv(program.uniforms.u_pattern_mid, (imagePosMid: any).tl.concat((imagePosMid: any).br));
+            gl.uniform4fv(program.uniforms.u_pattern_max, (imagePosMax: any).tl.concat((imagePosMax: any).br));
             gl.uniform1f(program.uniforms.u_fade, image.t);
-        } else if (bucket.dataDrivenPattern) {
-            gl.uniform1i(program.uniforms.u_image, 0);
-            context.activeTexture.set(gl.TEXTURE0);
-            tile.iconAtlasTexture.bind(gl.NEAREST, gl.CLAMP_TO_EDGE);
-            gl.uniform1f(program.uniforms.u_fade, 1);
+            gl.uniform1i(program.uniforms.u_zoomin, image.fromScale === 2 ? 1 : 0);
         }
+    }
+
+    if (bucket.dataDrivenPattern && linePattern.value.kind !== "constant") {
+        gl.uniform1i(program.uniforms.u_image, 0);
+        context.activeTexture.set(gl.TEXTURE0);
+        tile.iconAtlasTexture.bind(gl.NEAREST, gl.CLAMP_TO_EDGE);
+        gl.uniform1i(program.uniforms.u_zoomin, crossfade.fromScale === 2 ? 1 : 0);
+        gl.uniform1f(program.uniforms.u_fade, crossfade.t);
+        const size = tile.iconAtlasTexture.size;
+        gl.uniform2fv(program.uniforms.u_texsize, size);
+        gl.uniform4f(program.uniforms.u_scale, browser.devicePixelRatio > 1 ? 2 : 1, tileRatio, crossfade.fromScale, crossfade.toScale);
     }
 
     context.setStencilMode(painter.stencilModeForClipping(coord));

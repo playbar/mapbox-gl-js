@@ -1,6 +1,7 @@
 uniform vec2 u_texsize;
 uniform float u_fade;
 uniform vec4 u_scale;
+uniform bool u_zoomin;
 
 uniform sampler2D u_image;
 
@@ -9,21 +10,24 @@ varying vec2 v_width2;
 varying float v_linesofar;
 varying float v_gamma_scale;
 
-#pragma mapbox: define mediump vec4 pattern_a
-#pragma mapbox: define mediump vec4 pattern_b
+#pragma mapbox: define mediump vec4 pattern_min
+#pragma mapbox: define mediump vec4 pattern_mid
+#pragma mapbox: define mediump vec4 pattern_max
 #pragma mapbox: define lowp float blur
 #pragma mapbox: define lowp float opacity
 
 void main() {
-    #pragma mapbox: initialize mediump vec4 pattern_a
-    #pragma mapbox: initialize mediump vec4 pattern_b
+    #pragma mapbox: initialize mediump vec4 pattern_min
+    #pragma mapbox: initialize mediump vec4 pattern_mid
+    #pragma mapbox: initialize mediump vec4 pattern_max
+
     #pragma mapbox: initialize lowp float blur
     #pragma mapbox: initialize lowp float opacity
 
-    vec2 u_pattern_tl_a = pattern_a.xy;
-    vec2 u_pattern_br_a = pattern_a.zw;
-    vec2 u_pattern_tl_b = pattern_b.xy;
-    vec2 u_pattern_br_b = pattern_b.zw;
+    vec2 u_pattern_tl_a = u_zoomin ? pattern_min.xy : pattern_max.xy;
+    vec2 u_pattern_br_a = u_zoomin ? pattern_min.zw : pattern_max.zw;
+    vec2 u_pattern_tl_b = pattern_mid.xy;
+    vec2 u_pattern_br_b = pattern_mid.zw;
 
     float pixelRatio = u_scale.x;
     float tileRatio = u_scale.y;

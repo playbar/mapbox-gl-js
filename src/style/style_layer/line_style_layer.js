@@ -50,6 +50,7 @@ class LineStyleLayer extends StyleLayer {
     _transitionablePaint: Transitionable<PaintProps>;
     _transitioningPaint: Transitioning<PaintProps>;
     paint: PossiblyEvaluated<PaintProps>;
+    transitionParameters: EvaluationParameters;
 
     constructor(layer: LayerSpecification) {
         super(layer, properties);
@@ -57,10 +58,23 @@ class LineStyleLayer extends StyleLayer {
 
     recalculate(parameters: EvaluationParameters) {
         super.recalculate(parameters);
+        this.transitionParameters = parameters;
 
         (this.paint._values: any)['line-floorwidth'] =
             lineFloorwidthProperty.possiblyEvaluate(this._transitioningPaint._values['line-width'].value, parameters);
     }
+
+    getCrossfadeParameters(): {fromScale: number, toScale: number, t: number} {
+        const p = this.transitionParameters;
+        const z = p.zoom;
+        const fraction = z - Math.floor(z);
+        const t = p.crossFadingFactor();
+
+        return z > p.zoomHistory.lastIntegerZoom ?
+            { fromScale: 2, toScale: 1, t: fraction + (1 - fraction) * t } :
+            { fromScale: 0.5, toScale: 1, t: 1 - (1 - t) * fraction };
+    }
+
 
     createBucket(parameters: BucketParameters<*>) {
         return new LineBucket(parameters);
