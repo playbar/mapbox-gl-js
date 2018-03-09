@@ -134,8 +134,7 @@ for (const name in layoutAttributes) {
 
 const lineAttributes = require('../src/data/bucket/line_attributes');
 createStructArrayType(`line_layout`, lineAttributes.lineLayoutAttributes);
-createStructArrayType(`line_pattern_source_expression_layout`, lineAttributes.linePatternSourceExpressionLayout);
-createStructArrayType(`line_pattern_composite_expression_layout`, lineAttributes.linePatternCompositeExpressionLayout);
+createStructArrayType(`line_pattern_layout`, lineAttributes.linePatternAttributes);
 
 
 // symbol layer specific arrays

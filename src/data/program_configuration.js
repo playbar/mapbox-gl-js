@@ -10,8 +10,7 @@ const {
     StructArrayLayout1f4,
     StructArrayLayout2f8,
     StructArrayLayout4f16,
-    LinePatternSourceExpressionLayoutArray,
-    LinePatternCompositeExpressionLayoutArray
+    LinePatternLayoutArray,
 } = require('./array_types');
 
 import type Context from '../gl/context';
@@ -125,12 +124,12 @@ class SourceExpressionBinder<T> implements Binder<T> {
         this.type = type;
         this.statistics = { max: -Infinity };
         const PaintVertexArray = layout;
-        this.paintVertexAttributes = names.map((name, i) =>
+        this.paintVertexAttributes = names.map((name) =>
             ({
                 name: `a_${name}`,
                 type: 'Float32',
-                components: type === 'color'  || name.match(/pattern/) ? 2 : 1,
-                offset: name.match(/pattern/) ? i * 8 : 0
+                components: type === 'color' ? 2 : name.match(/pattern/) ? 4 : 1,
+                offset: 0
             })
         );
         this.paintVertexArray = new PaintVertexArray();
@@ -204,7 +203,7 @@ class CompositeExpressionBinder<T> implements Binder<T> {
             return {
                 name: `a_${name}`,
                 type: 'Float32',
-                components: type === 'color' ? 4 : 2,
+                components: type === 'color' || name.match(/pattern/) ? 4 : 2,
                 offset: 0
             };
         });
@@ -336,6 +335,7 @@ class ProgramConfiguration {
             // binders for properties with layout exceptions populate their paint arrays in the
             // bucket because they have multiple attributes and property-specific population code
             if (getLayoutException(property)) continue;
+
             this.binders[property].populatePaintArray(length, feature);
         }
     }
@@ -437,7 +437,7 @@ function paintAttributeName(property, type) {
         'text-halo-width': ['halo_width'],
         'icon-halo-width': ['halo_width'],
         'line-gap-width': ['gapwidth'],
-        'line-pattern': ['pattern_a', 'pattern_b', 'pattern_size']
+        'line-pattern': ['pattern_min', 'pattern_mid', 'pattern_max']
     };
     return attributeNameExceptions[property] ||
         [property.replace(`${type}-`, '').replace(/-/g, '_')];
@@ -446,8 +446,8 @@ function paintAttributeName(property, type) {
 function getLayoutException(property) {
     const propertyExceptions = {
         'line-pattern':{
-            'source': LinePatternSourceExpressionLayoutArray,
-            'composite': LinePatternCompositeExpressionLayoutArray
+            'source': LinePatternLayoutArray,
+            'composite': LinePatternLayoutArray
         }
     };
 

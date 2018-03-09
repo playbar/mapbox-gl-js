@@ -621,9 +621,10 @@ class CrossFadedDataDrivenProperty<T> extends DataDrivenProperty<?CrossFaded<T>>
         const z = parameters.zoom;
         const fraction = z - Math.floor(z);
         const t = parameters.crossFadingFactor();
+
         return z > parameters.zoomHistory.lastIntegerZoom ?
-            { from: min, to: mid, fromScale: 2, toScale: 1, t: fraction + (1 - fraction) * t } :
-            { from: max, to: mid, fromScale: 0.5, toScale: 1, t: 1 - (1 - t) * fraction };
+            { from: min, to: mid, min: min, mid: mid, max: max, fromScale: 2, toScale: 1, t: fraction + (1 - fraction) * t } :
+            { from: max, to: mid, min: min, mid: mid, max: max, fromScale: 0.5, toScale: 1, t: 1 - (1 - t) * fraction };
     }
 
     interpolate(a: PossiblyEvaluatedPropertyValue<?CrossFaded<T>>): PossiblyEvaluatedPropertyValue<?CrossFaded<T>> {
@@ -665,8 +666,8 @@ class CrossFadedProperty<T> implements Property<T, ?CrossFaded<T>> {
         const fraction = z - Math.floor(z);
         const t = parameters.crossFadingFactor();
         return z > parameters.zoomHistory.lastIntegerZoom ?
-            { from: min, to: mid, fromScale: 2, toScale: 1, t: fraction + (1 - fraction) * t } :
-            { from: max, to: mid, fromScale: 0.5, toScale: 1, t: 1 - (1 - t) * fraction };
+            { from: min, to: mid, min: min, mid: mid, max: max, fromScale: 2, toScale: 1, t: fraction + (1 - fraction) * t } :
+            { from: max, to: mid, min: min, mid: mid, max: max, fromScale: 0.5, toScale: 1, t: 1 - (1 - t) * fraction };
     }
 
     interpolate(a: ?CrossFaded<T>): ?CrossFaded<T> {

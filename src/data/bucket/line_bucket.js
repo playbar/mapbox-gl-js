@@ -10,7 +10,6 @@ const loadGeometry = require('../load_geometry');
 const EXTENT = require('../extent');
 const vectorTileFeatureTypes = require('@mapbox/vector-tile').VectorTileFeature.types;
 const {register} = require('../../util/web_worker_transfer');
-const packUint8ToFloat = require('../../shaders/encode_attribute').packUint8ToFloat;
 
 
 import type {
@@ -160,8 +159,9 @@ class LineBucket implements Bucket {
                 const linePattern = layer.paint.get('line-pattern');
                 const image = linePattern.evaluate(feature);
                 if (image) {
-                    icons[image.from] = true;
-                    icons[image.to] = true;
+                    icons[image.min] = true;
+                    icons[image.mid] = true;
+                    icons[image.max] = true;
                 }
                 const geometry = loadGeometry(feature);
                 const lineFeature: LineFeature = {
@@ -504,28 +504,38 @@ class LineBucket implements Bucket {
                 paintArray.reserve(length);
                 if (feature.image) {
                     const image = (feature.image: any);
-                    const imagePosA = this.imagePositions[image.from];
-                    const imagePosB = this.imagePositions[image.to];
+                    const imageMin = this.imagePositions[image.min];
+                    const imageMid = this.imagePositions[image.mid];
+                    const imageMax = this.imagePositions[image.max];
 
-                    if (!imagePosA || !imagePosB) return;
+                    if (!imageMin || !imageMid || !imageMax) {
+                        return;
+                    }
 
-                    const aTL = packUint8ToFloat(imagePosA.tl[0], imagePosA.tl[1]);
-                    const aBR = packUint8ToFloat(imagePosA.br[0], imagePosA.br[1]);
-                    const bTL = packUint8ToFloat(imagePosB.tl[0], imagePosB.tl[1]);
-                    const bBR = packUint8ToFloat(imagePosB.br[0], imagePosB.br[1]);
+                    // will delete this once we decide on a packing strategy for line-pattern
+                    // const minTL = packUint8ToFloat(imageMin.tl[0], imageMin.tl[1]);
+                    // const minBR = packUint8ToFloat(imageMin.br[0], imageMin.br[1]);
+                    // const midTL = packUint8ToFloat(imageMid.tl[0], imageMid.tl[1]);
+                    // const midBR = packUint8ToFloat(imageMid.br[0], imageMid.br[1]);
+                    // const maxTL = packUint8ToFloat(imageMax.tl[0], imageMax.tl[1]);
+                    // const maxBR = packUint8ToFloat(imageMax.br[0], imageMax.br[1]);
 
                     for (let i = start; i < length; i++) {
                         paintArray.emplaceBack(
-                            // u_pattern_tl_a, u_pattern_br_a
-                            aTL, aBR,
-                            // u_pattern_tl_b, u_pattern_br_b
-                            bTL, bBR
+                                // minTL, minBR,
+                                // midTL, midBR,
+                                // maxTL, maxBR
+                                imageMin.tl[0], imageMin.tl[1], imageMin.br[0], imageMin.br[1],
+                                imageMid.tl[0], imageMid.tl[1], imageMid.br[0], imageMid.br[1],
+                                imageMax.tl[0], imageMax.tl[1], imageMax.br[0], imageMax.br[1]
                         );
                     }
                 }
             }
         }
     }
+
+
     /**
      * Add two vertices to the buffers.
      *
