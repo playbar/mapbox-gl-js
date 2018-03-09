@@ -1,0 +1,17 @@
+{
+  "expression": ["diacritic-insensitive-equal", null, ["get", "lhs"], ["get", "rhs"]],
+  "inputs": [
+      [{}, {"properties": {"lhs": "a", "rhs": "ä"}}],
+      [{}, {"properties": {"lhs": "b", "rhs": "ä"}}]
+  ],
+  "expected": {
+    "compiled": {
+      "result": "success",
+      "isFeatureConstant": false,
+      "isZoomConstant": true,
+      "type": "boolean"
+    },
+    "outputs": [true, false],
+    "serialized": "string"
+  }
+}

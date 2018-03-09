@@ -519,6 +519,15 @@ CompoundExpression.register(expressions, {
         [BooleanType],
         (ctx, [b]) => !b.evaluate(ctx)
     ],
+    'diacritic-insensitive-equal': [
+        BooleanType,
+        [ValueType, StringType, StringType],
+        (ctx, [locale, lhs, rhs]) => {
+            return new Intl.Collator(locale.value ? locale.value : {},
+                                     { sensitivity: 'base', usage: 'search' })
+                .compare(lhs.evaluate(ctx), rhs.evaluate(ctx)) === 0;
+        }
+    ],
     'is-supported-script': [
         BooleanType,
         [StringType],

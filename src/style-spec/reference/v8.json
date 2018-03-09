@@ -2271,6 +2271,10 @@
         "doc": "Logical negation. Returns `true` if the input is `false`, and `false` if the input is `true`.",
         "group": "Decision"
       },
+      "diacritic-insensitive-equals": {
+        "doc": "Returns `true` if the two input strings are equal using diacritic-insensitive comparison based on the provided locale. Locale is specified as a BCP 47 language tag. If unspecified, locale defaults to the current locale.",
+        "group": "String"
+      },
       "is-renderable": {
         "doc": "Returns `true` if the input string is expected to render legibly. Returns `false` if the input string contains sections that cannot be rendered without potential loss of meaning (e.g. Indic scripts that require complex text shaping, or right-to-left scripts if the the `mapbox-gl-rtl-text` plugin is not in use).",
         "group": "String"
