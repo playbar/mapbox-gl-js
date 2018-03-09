@@ -8,6 +8,7 @@ export type ColorTypeT = { kind: 'color' };
 export type ObjectTypeT = { kind: 'object' };
 export type ValueTypeT = { kind: 'value' };
 export type ErrorTypeT = { kind: 'error' };
+export type CollatorTypeT = { kind: 'collator' };
 
 export type Type =
     NullTypeT |
@@ -18,7 +19,8 @@ export type Type =
     ObjectTypeT |
     ValueTypeT |
     ArrayType | // eslint-disable-line no-use-before-define
-    ErrorTypeT
+    ErrorTypeT |
+    CollatorTypeT
 
 export type ArrayType = {
     kind: 'array',
@@ -34,6 +36,7 @@ const ColorType = { kind: 'color' };
 const ObjectType = { kind: 'object' };
 const ValueType = { kind: 'value' };
 const ErrorType = { kind: 'error' };
+const CollatorType = { kind: 'collator' };
 
 function array(itemType: Type, N: ?number): ArrayType {
     return {
@@ -102,6 +105,7 @@ module.exports = {
     ValueType,
     array,
     ErrorType,
+    CollatorType,
     toString,
     checkSubtype
 };

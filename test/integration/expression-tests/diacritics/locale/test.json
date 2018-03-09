@@ -1,5 +1,5 @@
 {
-  "expression": ["diacritic-insensitive-equal", "de", ["get", "lhs"], ["get", "rhs"]],
+  "expression": ["==", ["string",["get", "lhs"]], ["get", "rhs"], ["collator", true, false, "de"]],
   "inputs": [
       [{}, {"properties": {"lhs": "ü", "rhs": "ue"}}],
       [{}, {"properties": {"lhs": "ü", "rhs": "u"}}]

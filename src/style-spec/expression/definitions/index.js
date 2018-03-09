@@ -28,6 +28,7 @@ const Step = require('./step');
 const Interpolate = require('./interpolate');
 const Coalesce = require('./coalesce');
 const {Equals, NotEquals} = require('./equals');
+const {CollatorExpression} = require('./collator');
 
 import type { ExpressionRegistry } from '../expression';
 
@@ -40,6 +41,7 @@ const expressions: ExpressionRegistry = {
     'boolean': Assertion,
     'case': Case,
     'coalesce': Coalesce,
+    'collator': CollatorExpression,
     'interpolate': Interpolate,
     'let': Let,
     'literal': Literal,
@@ -518,15 +520,6 @@ CompoundExpression.register(expressions, {
         BooleanType,
         [BooleanType],
         (ctx, [b]) => !b.evaluate(ctx)
-    ],
-    'diacritic-insensitive-equal': [
-        BooleanType,
-        [ValueType, StringType, StringType],
-        (ctx, [locale, lhs, rhs]) => {
-            return new Intl.Collator(locale.value ? locale.value : {},
-                                     { sensitivity: 'base', usage: 'search' })
-                .compare(lhs.evaluate(ctx), rhs.evaluate(ctx)) === 0;
-        }
     ],
     'is-supported-script': [
         BooleanType,
