@@ -3,12 +3,9 @@
 mapboxgl.accessToken = getAccessToken();
 
 function getAccessToken() {
-    var accessToken = (
-        process.env.MapboxAccessToken ||
-        process.env.MAPBOX_ACCESS_TOKEN ||
-        getURLParameter('access_token') ||
-        localStorage.getItem('accessToken')
-    );
+    var accessToken =
+        "pk.eyJ1IjoiaGdsODY4IiwiYSI6ImNqY3IxazAxODIzZzMzM3M1eTZnMzM3ZWYifQ.r4fHRX1Ty6qgBqbLOZ3srw"
+
     localStorage.setItem('accessToken', accessToken);
     return accessToken;
 }

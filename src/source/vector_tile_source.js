@@ -94,6 +94,7 @@ class VectorTileSource extends Evented implements Source {
     loadTile(tile: Tile, callback: Callback<void>) {
         const overscaling = tile.tileID.overscaleFactor();
         const url = normalizeURL(tile.tileID.canonical.url(this.tiles, this.scheme), this.url);
+        console.log("url=%s", url);
         const params = {
             request: this.map._transformRequest(url, ResourceType.Tile),
             uid: tile.uid,
