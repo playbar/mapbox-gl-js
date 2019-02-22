@@ -4,8 +4,10 @@
     <meta charset='utf-8' />
     <title>Display a map</title>
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
-    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.1/mapbox-gl.js'></script>
-    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.1/mapbox-gl.css' rel='stylesheet' />
+    <script src='/dist/mapbox-gl.js'></script>
+    <link href='/dist/mapbox-gl.css' rel='stylesheet' />
+    <!--<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.42.2/mapbox-gl.js'></script>-->
+    <!--<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.42.2/mapbox-gl.css' rel='stylesheet' />-->
     <style>
         body { margin:0; padding:0; }
         #map { position:absolute; top:0; bottom:0; width:100%; }
@@ -19,7 +21,8 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiaGdsODY4IiwiYSI6ImNqY3IxazAxODIzZzMzM3M1eTZnM
 var map = new mapboxgl.Map({
     container: 'map', // container id
     style: 'mapbox://styles/mapbox/streets-v9', // stylesheet location
-    center: [-74.50, 40], // starting position [lng, lat]
+    // center: [-74.50, 40], // starting position [lng, lat]
+    center: [116.288955,40.043727],
     zoom: 9 // starting zoom
 });
 </script>
