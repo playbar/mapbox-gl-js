@@ -2,8 +2,8 @@ import {test} from 'mapbox-gl-js-test';
 import fs from 'fs';
 import path from 'path';
 import reference from '../../src/style-spec/reference/latest';
-
-const pkg = require('../../package.json');
+import { Linter } from 'eslint';
+import { scripts } from '../../package.json';
 
 const minBundle = fs.readFileSync('dist/mapbox-gl.js', 'utf8');
 
@@ -15,8 +15,8 @@ test('production build removes asserts', (t) => {
 test('trims package.json assets', (t) => {
     // confirm that the entire package.json isn't present by asserting
     // the absence of each of our script strings
-    for (const name in pkg.scripts) {
-        t.assert(minBundle.indexOf(pkg.scripts[name]) === -1);
+    for (const name in scripts) {
+        t.assert(minBundle.indexOf(scripts[name]) === -1);
     }
     t.end();
 });
@@ -34,3 +34,19 @@ test('can be browserified', (t) => {
         t.end();
     });
 });
+
+test('distributed in plain ES5 code', (t) => {
+    const linter = new Linter();
+    const messages = linter.verify(minBundle, {
+        parserOptions: {
+            ecmaVersion: 5
+        },
+        rules: {},
+        env: {
+            node: true
+        }
+    });
+    t.deepEqual(messages.map(message => `${message.line}:${message.column}: ${message.message}`), []);
+    t.end();
+});
+

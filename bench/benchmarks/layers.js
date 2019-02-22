@@ -3,11 +3,14 @@ import Benchmark from '../lib/benchmark';
 import createMap from '../lib/create_map';
 import style from '../data/empty.json';
 
+const width = 1024;
+const height = 768;
+
 function generateLayers(layer) {
     const generated = [];
     for (let i = 0; i < 50; i++) {
         const id = layer.id + i;
-        generated.push(Object.assign({}, layer, {id: id}));
+        generated.push(Object.assign({}, layer, {id}));
     }
     return generated;
 }
@@ -16,8 +19,8 @@ class LayerBenchmark extends Benchmark {
     setup() {
         return createMap({
             zoom: 16,
-            width: 1024,
-            height: 768,
+            width,
+            height,
             center: [-77.032194, 38.912753],
             style: this.layerStyle
         }).then(map => {
@@ -108,7 +111,7 @@ class LayerHeatmap extends LayerBenchmark {
                     sources: {
                         'heatmap': {
                             'type': 'geojson',
-                            'data': data,
+                            data,
                             'maxzoom': 23
                         }
                     },

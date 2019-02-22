@@ -8,13 +8,12 @@ import { extend } from '../util/util';
 
 import type Map from './map';
 import type LngLat from '../geo/lng_lat';
-import type LngLatBounds from '../geo/lng_lat_bounds';
 
 /**
  * `MapMouseEvent` is the event type for mouse-related map events.
  * @extends {Object}
  */
-class MapMouseEvent extends Event {
+export class MapMouseEvent extends Event {
     /**
      * The event type.
      */
@@ -26,14 +25,13 @@ class MapMouseEvent extends Event {
         | 'mouseover'
         | 'mouseenter'
         | 'mouseleave'
-        | 'mouseover'
         | 'mouseout'
         | 'contextmenu';
 
     /**
      * The `Map` object that fired the event.
      */
-    map: Map;
+    target: Map;
 
     /**
      * The DOM event which caused the map event.
@@ -82,6 +80,7 @@ class MapMouseEvent extends Event {
         const lngLat = map.unproject(point);
         super(type, extend({ point, lngLat, originalEvent }, data));
         this._defaultPrevented = false;
+        this.target = map;
     }
 }
 
@@ -89,7 +88,7 @@ class MapMouseEvent extends Event {
  * `MapTouchEvent` is the event type for touch-related map events.
  * @extends {Object}
  */
-class MapTouchEvent extends Event {
+export class MapTouchEvent extends Event {
     /**
      * The event type.
      */
@@ -100,7 +99,7 @@ class MapTouchEvent extends Event {
     /**
      * The `Map` object that fired the event.
      */
-    map: Map;
+    target: Map;
 
     /**
      * The DOM event which caused the map event.
@@ -172,7 +171,7 @@ class MapTouchEvent extends Event {
  * `MapWheelEvent` is the event type for the `wheel` map event.
  * @extends {Object}
  */
-class MapWheelEvent extends Event {
+export class MapWheelEvent extends Event {
     /**
      * The event type.
      */
@@ -181,7 +180,7 @@ class MapWheelEvent extends Event {
     /**
      * The `Map` object that fired the event.
      */
-    map: Map;
+    target: Map;
 
     /**
      * The DOM event which caused the map event.
@@ -218,16 +217,13 @@ class MapWheelEvent extends Event {
 /**
  * @typedef {Object} MapBoxZoomEvent
  * @property {MouseEvent} originalEvent
- * @property {LngLatBounds} boxZoomBounds The bounding box of the "box zoom" interaction.
- *   This property is only provided for `boxzoomend` events.
  */
 export type MapBoxZoomEvent = {
     type: 'boxzoomstart'
         | 'boxzoomend'
         | 'boxzoomcancel',
     map: Map,
-    originalEvent: MouseEvent,
-    boxZoomBounds: LngLatBounds
+    originalEvent: MouseEvent
 };
 
 /**
@@ -357,16 +353,6 @@ export type MapEvent =
      * @see [Highlight features under the mouse pointer](https://www.mapbox.com/mapbox-gl-js/example/hover-styles/)
      */
     | 'mouseleave'
-
-    /**
-     * Synonym for `mouseenter`.
-     *
-     * @event mouseover
-     * @memberof Map
-     * @instance
-     * @property {MapMouseEvent} data
-     */
-    | 'mouseover'
 
     /**
      * Fired when a point device (usually a mouse) leaves the map's canvas.
@@ -688,6 +674,20 @@ export type MapEvent =
     | 'render'
 
     /**
+     * Fired after the last frame rendered before the map enters an
+     * "idle" state:
+     *
+     * - No camera transitions are in progress
+     * - All currently requested tiles have loaded
+     * - All fade/transition animations have completed
+     *
+     * @event idle
+     * @memberof Map
+     * @instance
+     */
+    | 'idle'
+
+    /**
      * Fired immediately after the map has been removed with {@link Map.event:remove}.
      *
      * @event remove
@@ -785,12 +785,3 @@ export type MapEvent =
      * @private
      */
     | 'style.load';
-
-const exported = {
-    MapMouseEvent,
-    MapTouchEvent,
-    MapWheelEvent
-};
-
-export default exported;
-export { MapMouseEvent, MapTouchEvent, MapWheelEvent };

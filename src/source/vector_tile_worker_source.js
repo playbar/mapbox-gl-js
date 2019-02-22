@@ -1,12 +1,12 @@
 // @flow
 
-import {getArrayBuffer} from '../util/ajax';
+import { getArrayBuffer } from '../util/ajax';
 
 import vt from '@mapbox/vector-tile';
 import Protobuf from 'pbf';
 import WorkerTile from './worker_tile';
 import { extend } from '../util/util';
-import perf from '../util/performance';
+import performance from '../util/performance';
 
 import type {
     WorkerSource,
@@ -43,20 +43,20 @@ export type LoadVectorData = (params: WorkerTileParameters, callback: LoadVector
  * @private
  */
 function loadVectorTile(params: WorkerTileParameters, callback: LoadVectorDataCallback) {
-    const xhr = getArrayBuffer(params.request, (err, response) => {
+    const request = getArrayBuffer(params.request, (err: ?Error, data: ?ArrayBuffer, cacheControl: ?string, expires: ?string) => {
         if (err) {
             callback(err);
-        } else if (response) {
+        } else if (data) {
             callback(null, {
-                vectorTile: new vt.VectorTile(new Protobuf(response.data)),
-                rawData: response.data,
-                cacheControl: response.cacheControl,
-                expires: response.expires
+                vectorTile: new vt.VectorTile(new Protobuf(data)),
+                rawData: data,
+                cacheControl,
+                expires
             });
         }
     });
     return () => {
-        xhr.abort();
+        request.cancel();
         callback();
     };
 }
@@ -102,11 +102,16 @@ class VectorTileWorkerSource implements WorkerSource {
         if (!this.loading)
             this.loading = {};
 
+        const perf = (params && params.request && params.request.collectResourceTiming) ?
+            new performance.Performance(params.request) : false;
+
         const workerTile = this.loading[uid] = new WorkerTile(params);
         workerTile.abort = this.loadVectorData(params, (err, response) => {
             delete this.loading[uid];
 
             if (err || !response) {
+                workerTile.status = 'done';
+                this.loaded[uid] = workerTile;
                 return callback(err);
             }
 
@@ -114,9 +119,10 @@ class VectorTileWorkerSource implements WorkerSource {
             const cacheControl = {};
             if (response.expires) cacheControl.expires = response.expires;
             if (response.cacheControl) cacheControl.cacheControl = response.cacheControl;
+
             const resourceTiming = {};
-            if (params.request && params.request.collectResourceTiming) {
-                const resourceTimingData = perf.getEntriesByName(params.request.url);
+            if (perf) {
+                const resourceTimingData = perf.finish();
                 // it's necessary to eval the result of getEntriesByName() here via parse/stringify
                 // late evaluation in the main thread causes TypeError: illegal invocation
                 if (resourceTimingData)
@@ -147,22 +153,25 @@ class VectorTileWorkerSource implements WorkerSource {
             const workerTile = loaded[uid];
             workerTile.showCollisionBoxes = params.showCollisionBoxes;
 
+            const done = (err, data) => {
+                const reloadCallback = workerTile.reloadCallback;
+                if (reloadCallback) {
+                    delete workerTile.reloadCallback;
+                    workerTile.parse(workerTile.vectorTile, vtSource.layerIndex, vtSource.actor, reloadCallback);
+                }
+                callback(err, data);
+            };
+
             if (workerTile.status === 'parsing') {
-                workerTile.reloadCallback = callback;
+                workerTile.reloadCallback = done;
             } else if (workerTile.status === 'done') {
-                workerTile.parse(workerTile.vectorTile, this.layerIndex, this.actor, done.bind(workerTile));
+                // if there was no vector tile data on the initial load, don't try and re-parse tile
+                if (workerTile.vectorTile) {
+                    workerTile.parse(workerTile.vectorTile, this.layerIndex, this.actor, done);
+                } else {
+                    done();
+                }
             }
-
-        }
-
-        function done(err, data) {
-            if (this.reloadCallback) {
-                const reloadCallback = this.reloadCallback;
-                delete this.reloadCallback;
-                this.parse(this.vectorTile, vtSource.layerIndex, vtSource.actor, reloadCallback);
-            }
-
-            callback(err, data);
         }
     }
 

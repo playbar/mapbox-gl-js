@@ -1,24 +1,22 @@
 // @flow
 
-import assert from 'assert';
-
-import Scope from './scope';
 import { Color } from './values';
 
-import type { Feature, GlobalProperties } from './index';
-import type { Expression } from './expression';
+import type { GlobalProperties, Feature, FeatureState } from './index';
 
 const geometryTypes = ['Unknown', 'Point', 'LineString', 'Polygon'];
 
 class EvaluationContext {
     globals: GlobalProperties;
     feature: ?Feature;
+    featureState: ?FeatureState;
 
-    scope: Scope;
     _parseColorCache: {[string]: ?Color};
 
     constructor() {
-        this.scope = new Scope();
+        this.globals = (null: any);
+        this.feature = null;
+        this.featureState = null;
         this._parseColorCache = {};
     }
 
@@ -32,15 +30,6 @@ class EvaluationContext {
 
     properties() {
         return this.feature && this.feature.properties || {};
-    }
-
-    pushScope(bindings: Array<[string, Expression]>) {
-        this.scope = this.scope.concat(bindings);
-    }
-
-    popScope() {
-        assert(this.scope.parent);
-        this.scope = (this.scope.parent: any);
     }
 
     parseColor(input: string): ?Color {

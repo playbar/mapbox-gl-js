@@ -1,10 +1,10 @@
-/* eslint-disable import/unambiguous,no-global-assign */
+/* eslint-disable import/unambiguous, import/no-commonjs, no-global-assign */
 
 require('./stub_loader');
-require('../build/flow-remove-types.js');
-require = require("@std/esm")(module, true);
+require('@mapbox/flow-remove-types/register');
+require = require("esm")(module, true);
 
-const querySuite = require('./integration').query;
+const querySuite = require('./integration/lib/query');
 const suiteImplementation = require('./suite_implementation');
 const ignores = require('./ignores.json');
 

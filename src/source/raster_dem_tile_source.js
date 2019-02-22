@@ -14,6 +14,7 @@ import type {Source} from './source';
 import type Dispatcher from '../util/dispatcher';
 import type Tile from './tile';
 import type {Callback} from '../types/callback';
+import type {RasterDEMSourceSpecification} from '../style-spec/types';
 
 
 class RasterDEMTileSource extends RasterTileSource implements Source {
@@ -61,7 +62,7 @@ class RasterDEMTileSource extends RasterTileSource implements Source {
                     uid: tile.uid,
                     coord: tile.tileID,
                     source: this.id,
-                    rawImageData: rawImageData,
+                    rawImageData,
                     encoding: this.encoding
                 };
 

@@ -5,7 +5,7 @@ import { extend, pick } from '../util/util';
 import { getImage, ResourceType } from '../util/ajax';
 import { Event, ErrorEvent, Evented } from '../util/evented';
 import loadTileJSON from './load_tilejson';
-import { normalizeTileURL as normalizeURL } from '../util/mapbox';
+import { normalizeTileURL as normalizeURL, postTurnstileEvent, postMapLoadEvent } from '../util/mapbox';
 import TileBounds from './tile_bounds';
 import Texture from '../render/texture';
 
@@ -15,6 +15,11 @@ import type Map from '../ui/map';
 import type Dispatcher from '../util/dispatcher';
 import type Tile from './tile';
 import type {Callback} from '../types/callback';
+import type {Cancelable} from '../types/cancelable';
+import type {
+    RasterSourceSpecification,
+    RasterDEMSourceSpecification
+} from '../style-spec/types';
 
 class RasterTileSource extends Evented implements Source {
     type: 'raster' | 'raster-dem';
@@ -34,6 +39,7 @@ class RasterTileSource extends Evented implements Source {
 
     _loaded: boolean;
     _options: RasterSourceSpecification | RasterDEMSourceSpecification;
+    _tileJSONRequest: ?Cancelable;
 
     constructor(id: string, options: RasterSourceSpecification | RasterDEMSourceSpecification, dispatcher: Dispatcher, eventedParent: Evented) {
         super();
@@ -55,12 +61,16 @@ class RasterTileSource extends Evented implements Source {
 
     load() {
         this.fire(new Event('dataloading', {dataType: 'source'}));
-        loadTileJSON(this._options, this.map._transformRequest, (err, tileJSON) => {
+        this._tileJSONRequest = loadTileJSON(this._options, this.map._transformRequest, (err, tileJSON) => {
+            this._tileJSONRequest = null;
             if (err) {
                 this.fire(new ErrorEvent(err));
             } else if (tileJSON) {
                 extend(this, tileJSON);
                 if (tileJSON.bounds) this.tileBounds = new TileBounds(tileJSON.bounds, this.minzoom, this.maxzoom);
+
+                postTurnstileEvent(tileJSON.tiles);
+                postMapLoadEvent(tileJSON.tiles, this.map._getMapId());
 
                 // `content` is included here to prevent a race condition where `Style#_updateSources` is called
                 // before the TileJSON arrives. this makes sure the tiles needed are loaded once TileJSON arrives
@@ -74,6 +84,13 @@ class RasterTileSource extends Evented implements Source {
     onAdd(map: Map) {
         this.map = map;
         this.load();
+    }
+
+    onRemove() {
+        if (this._tileJSONRequest) {
+            this._tileJSONRequest.cancel();
+            this._tileJSONRequest = null;
+        }
     }
 
     serialize() {
@@ -104,17 +121,15 @@ class RasterTileSource extends Evented implements Source {
                 const gl = context.gl;
                 tile.texture = this.map.painter.getTileTexture(img.width);
                 if (tile.texture) {
-                    tile.texture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE, gl.LINEAR_MIPMAP_NEAREST);
-                    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, img);
+                    tile.texture.update(img, { useMipmap: true });
                 } else {
-                    tile.texture = new Texture(context, img, gl.RGBA);
+                    tile.texture = new Texture(context, img, gl.RGBA, { useMipmap: true });
                     tile.texture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE, gl.LINEAR_MIPMAP_NEAREST);
 
                     if (context.extTextureFilterAnisotropic) {
                         gl.texParameterf(gl.TEXTURE_2D, context.extTextureFilterAnisotropic.TEXTURE_MAX_ANISOTROPY_EXT, context.extTextureFilterAnisotropicMax);
                     }
                 }
-                gl.generateMipmap(gl.TEXTURE_2D);
 
                 tile.state = 'loaded';
 
@@ -125,7 +140,7 @@ class RasterTileSource extends Evented implements Source {
 
     abortTile(tile: Tile, callback: Callback<void>) {
         if (tile.request) {
-            tile.request.abort();
+            tile.request.cancel();
             delete tile.request;
         }
         callback();

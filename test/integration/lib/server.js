@@ -1,16 +1,14 @@
-'use strict';
+import path from 'path';
+import fs from 'fs';
+import st from 'st';
+import {createServer} from 'http';
+import colors from 'chalk';
 
-const st = require('st');
-const http = require('http');
-const path = require('path');
-const colors = require('chalk');
-const fs = require('fs');
-
-module.exports = function () {
+export default function () {
     const integrationMount = st({path: path.join(__dirname, '..')});
     const mapboxGLStylesMount = st({path: path.dirname(require.resolve('mapbox-gl-styles')), url: 'mapbox-gl-styles'});
     const mapboxMVTFixturesMount = st({path: path.dirname(require.resolve('@mapbox/mvt-fixtures')), url: 'mvt-fixtures'});
-    const server = http.createServer((req, res) => {
+    const server = createServer((req, res) => {
         return mapboxMVTFixturesMount(req, res, () => {
             return mapboxGLStylesMount(req, res, () => {
                 return integrationMount(req, res);
@@ -76,15 +74,15 @@ module.exports = function () {
     }
 
     return {
-        listen: function (callback) {
+        listen(callback) {
             server.listen(2900, callback);
         },
 
-        close: function (callback) {
+        close(callback) {
             server.close(callback);
         },
 
-        localizeURLs: function (style) {
+        localizeURLs(style) {
             localizeStyleURLs(style);
             if (style.metadata && style.metadata.test && style.metadata.test.operations) {
                 style.metadata.test.operations.forEach((op) => {
@@ -125,4 +123,4 @@ module.exports = function () {
             }
         }
     };
-};
+}

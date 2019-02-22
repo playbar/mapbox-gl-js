@@ -1,10 +1,8 @@
-'use strict';
-
-const path = require('path');
-const harness = require('./harness');
-const diff = require('diff');
-const fs = require('fs');
-const compactStringify = require('json-stringify-pretty-compact');
+import path from 'path';
+import diff from 'diff';
+import fs from 'fs';
+import harness from './harness';
+import compactStringify from 'json-stringify-pretty-compact';
 
 // we have to handle this edge case here because we have test fixtures for this
 // edge case, and we don't want UPDATE=1 to mess with them
@@ -75,6 +73,7 @@ function deepEqual(a, b) {
 
     return true;
 }
+
 /**
  * Run the expression suite.
  *
@@ -86,30 +85,22 @@ function deepEqual(a, b) {
  * @param {} runExpressionTest - a function that runs a single expression test fixture
  * @returns {undefined} terminates the process when testing is complete
  */
-exports.run = function (implementation, options, runExpressionTest) {
+export function run(implementation, options, runExpressionTest) {
     const directory = path.join(__dirname, '../expression-tests');
     options.fixtureFilename = 'test.json';
     harness(directory, implementation, options, (fixture, params, done) => {
         try {
             const result = runExpressionTest(fixture, params);
-            const dir = path.join(directory, params.group, params.test);
+            const dir = path.join(directory, params.id);
 
             if (process.env.UPDATE) {
-                // If we're updating from GL JS, where `result.serialized` will not exist,
-                // just copy the existing expected value, or default to expect the
-                // serialized form to be identical to the input expression
-                const previousSerialized =
-                    (fixture.expected && fixture.expected.serialized !== undefined) ?
-                        fixture.expected.serialized :
-                        undefined;
-
                 fixture.expected = {
                     compiled: result.compiled,
                     outputs: stripPrecision(result.outputs),
-                    serialized: implementation === 'native' ?
-                        result.serialized :
-                        previousSerialized
+                    serialized: result.serialized
                 };
+
+                delete fixture.metadata;
 
                 fs.writeFile(path.join(dir, 'test.json'), `${stringify(fixture, null, 2)}\n`, done);
                 return;
@@ -119,12 +110,10 @@ exports.run = function (implementation, options, runExpressionTest) {
             const compileOk = deepEqual(result.compiled, expected.compiled);
             const evalOk = compileOk && deepEqual(result.outputs, expected.outputs);
 
-            // Serialization/round-tripping only exists on native
             let recompileOk = true;
             let roundTripOk = true;
             let serializationOk = true;
-
-            if (implementation === 'native' && expected.compiled.result !== 'error') {
+            if (expected.compiled.result !== 'error') {
                 serializationOk = compileOk && deepEqual(expected.serialized, result.serialized);
                 recompileOk = compileOk && deepEqual(result.recompiled, expected.compiled);
                 roundTripOk = recompileOk && deepEqual(result.roundTripOutputs, expected.outputs);
@@ -132,29 +121,41 @@ exports.run = function (implementation, options, runExpressionTest) {
 
             params.ok = compileOk && evalOk && recompileOk && roundTripOk && serializationOk;
 
-            let msg = '';
-
-            const diffJson = (expectedJson, actualJson) => {
-                return diff.diffJson(expectedJson, actualJson)
-                    .map((hunk) => {
-                        if (hunk.added) {
-                            return `+ ${hunk.value}`;
-                        } else if (hunk.removed) {
-                            return `- ${hunk.value}`;
-                        } else {
-                            return `  ${hunk.value}`;
-                        }
-                    })
-                    .join('');
+            const diffOutput = {
+                text: '',
+                html: ''
             };
+
+            const diffJson = (label, expectedJson, actualJson) => {
+                let text = '';
+                let html = '';
+                diff.diffJson(expectedJson, actualJson)
+                    .forEach((hunk) => {
+                        if (hunk.added) {
+                            text += `+ ${hunk.value}`;
+                            html += `<ins>  ${hunk.value}</ins>`;
+                        } else if (hunk.removed) {
+                            text += `- ${hunk.value}`;
+                            html += `<del>  ${hunk.value}</del>`;
+                        } else {
+                            text += `  ${hunk.value}`;
+                            html += `<span>  ${hunk.value}</span>`;
+                        }
+                    });
+                if (text) {
+                    diffOutput.text += `${label}\n${text}`;
+                    diffOutput.html += `<h3>${label}</h3>\n${html}`;
+                }
+            };
+
             if (!compileOk) {
-                msg += diffJson(expected.compiled, result.compiled);
+                diffJson('Compiled', expected.compiled, result.compiled);
             }
             if (compileOk && !serializationOk) {
-                msg += diffJson(expected.serialized, result.serialized);
+                diffJson('Serialized', expected.serialized, result.serialized);
             }
             if (compileOk && !recompileOk) {
-                msg += diffJson(expected.compiled, result.recompiled);
+                diffJson('Serialized and re-compiled', expected.compiled, result.recompiled);
             }
 
             const diffOutputs = (testOutputs) => {
@@ -167,21 +168,27 @@ exports.run = function (implementation, options, runExpressionTest) {
                     .filter(Boolean)
                     .join('\n');
             };
+
             if (compileOk && !evalOk) {
-                msg += diffOutputs(result.outputs);
+                const differences = `Original\n${diffOutputs(result.outputs)}\n`;
+                diffOutput.text += differences;
+                diffOutput.html += differences;
             }
             if (recompileOk && !roundTripOk) {
-                msg += diffOutputs(result.roundTripOutputs);
+                const differences = `\nRoundtripped through serialize()\n${diffOutputs(result.roundTripOutputs)}\n`;
+                diffOutput.text += differences;
+                diffOutput.html += differences;
             }
 
-            params.difference = msg;
-            if (msg) { console.log(msg); }
+            params.difference = diffOutput.html;
+            if (diffOutput.text) { console.log(diffOutput.text); }
 
-            params.expression = JSON.stringify(fixture.expression, null, 2);
+            params.expression = compactStringify(fixture.expression);
+            params.serialized = compactStringify(result.serialized);
 
             done();
         } catch (e) {
             done(e);
         }
     });
-};
+}

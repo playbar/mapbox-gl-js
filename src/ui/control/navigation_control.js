@@ -1,13 +1,17 @@
 // @flow
 
 import DOM from '../../util/dom';
-
 import { extend, bindAll } from '../../util/util';
 import DragRotateHandler from '../handler/drag_rotate';
 
 import type Map from '../map';
 
-const defaultOptions = {
+type Options = {
+    showCompass?: boolean,
+    showZoom?: boolean
+};
+
+const defaultOptions: Options = {
     showCompass: true,
     showZoom: true
 };
@@ -27,7 +31,7 @@ const defaultOptions = {
  */
 class NavigationControl {
     _map: Map;
-    options: any;
+    options: Options;
     _container: HTMLElement;
     _zoomInButton: HTMLElement;
     _zoomOutButton: HTMLElement;
@@ -35,21 +39,21 @@ class NavigationControl {
     _compassArrow: HTMLElement;
     _handler: DragRotateHandler;
 
-    constructor(options: any) {
+    constructor(options: Options) {
         this.options = extend({}, defaultOptions, options);
 
         this._container = DOM.create('div', 'mapboxgl-ctrl mapboxgl-ctrl-group');
         this._container.addEventListener('contextmenu', (e) => e.preventDefault());
 
         if (this.options.showZoom) {
-            this._zoomInButton = this._createButton('mapboxgl-ctrl-icon mapboxgl-ctrl-zoom-in', 'Zoom In', () => this._map.zoomIn());
-            this._zoomOutButton = this._createButton('mapboxgl-ctrl-icon mapboxgl-ctrl-zoom-out', 'Zoom Out', () => this._map.zoomOut());
+            this._zoomInButton = this._createButton('mapboxgl-ctrl-icon mapboxgl-ctrl-zoom-in', 'Zoom in', () => this._map.zoomIn());
+            this._zoomOutButton = this._createButton('mapboxgl-ctrl-icon mapboxgl-ctrl-zoom-out', 'Zoom out', () => this._map.zoomOut());
         }
         if (this.options.showCompass) {
             bindAll([
                 '_rotateCompassArrow'
             ], this);
-            this._compass = this._createButton('mapboxgl-ctrl-icon mapboxgl-ctrl-compass', 'Reset North', () => this._map.resetNorth());
+            this._compass = this._createButton('mapboxgl-ctrl-icon mapboxgl-ctrl-compass', 'Reset bearing to north', () => this._map.resetNorth());
             this._compassArrow = DOM.create('span', 'mapboxgl-ctrl-compass-arrow', this._compass);
         }
     }
@@ -65,6 +69,7 @@ class NavigationControl {
             this._map.on('rotate', this._rotateCompassArrow);
             this._rotateCompassArrow();
             this._handler = new DragRotateHandler(map, {button: 'left', element: this._compass});
+            DOM.addEventListener(this._compass, 'mousedown', this._handler.onMouseDown);
             this._handler.enable();
         }
         return this._container;
@@ -74,6 +79,7 @@ class NavigationControl {
         DOM.remove(this._container);
         if (this.options.showCompass) {
             this._map.off('rotate', this._rotateCompassArrow);
+            DOM.removeEventListener(this._compass, 'mousedown', this._handler.onMouseDown);
             this._handler.disable();
             delete this._handler;
         }
@@ -84,6 +90,7 @@ class NavigationControl {
     _createButton(className: string, ariaLabel: string, fn: () => mixed) {
         const a = DOM.create('button', className, this._container);
         a.type = 'button';
+        a.title = ariaLabel;
         a.setAttribute('aria-label', ariaLabel);
         a.addEventListener('click', fn);
         return a;

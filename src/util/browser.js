@@ -1,6 +1,7 @@
 // @flow
 
 import window from './window';
+import type { Cancelable } from '../types/cancelable';
 
 const now = window.performance && window.performance.now ?
     window.performance.now.bind(window.performance) :
@@ -26,12 +27,9 @@ const exported = {
      */
     now,
 
-    frame(fn: Function) {
-        return raf(fn);
-    },
-
-    cancelFrame(id: number) {
-        return cancel(id);
+    frame(fn: Function): Cancelable {
+        const frame = raf(fn);
+        return { cancel: () => cancel(frame) };
     },
 
     getImageData(img: CanvasImageSource): ImageData {
@@ -46,17 +44,14 @@ const exported = {
         return context.getImageData(0, 0, img.width, img.height);
     },
 
+    resolveURL(path: string) {
+        const a = window.document.createElement('a');
+        a.href = path;
+        return a.href;
+    },
+
     hardwareConcurrency: window.navigator.hardwareConcurrency || 4,
-    get devicePixelRatio() { return window.devicePixelRatio; },
-    supportsWebp: false
+    get devicePixelRatio() { return window.devicePixelRatio; }
 };
 
 export default exported;
-
-if (window.document) {
-    const webpImgTest = window.document.createElement('img');
-    webpImgTest.onload = function() {
-        exported.supportsWebp = true;
-    };
-    webpImgTest.src = 'data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAQAAAAfQ//73v/+BiOh/AAA=';
-}

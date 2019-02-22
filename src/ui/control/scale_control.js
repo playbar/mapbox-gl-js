@@ -1,12 +1,18 @@
 // @flow
 
 import DOM from '../../util/dom';
-
 import { extend, bindAll } from '../../util/util';
 
 import type Map from '../map';
 
-const defaultOptions = {
+type Unit = 'imperial' | 'metric' | 'nautical';
+
+type Options = {
+    maxWidth?: number,
+    unit?: Unit;
+};
+
+const defaultOptions: Options = {
     maxWidth: 100,
     unit: 'metric'
 };
@@ -30,9 +36,9 @@ const defaultOptions = {
 class ScaleControl {
     _map: Map;
     _container: HTMLElement;
-    options: any;
+    options: Options;
 
-    constructor(options: any) {
+    constructor(options: Options) {
         this.options = extend({}, defaultOptions, options);
 
         bindAll([
@@ -68,9 +74,9 @@ class ScaleControl {
     /**
      * Set the scale's unit of the distance
      *
-     * @param {string} unit Unit of the distance (`'imperial'`, `'metric'` or `'nautical'`).
+     * @param unit Unit of the distance (`'imperial'`, `'metric'` or `'nautical'`).
      */
-    setUnit(unit: string) {
+    setUnit(unit: Unit) {
         this.options.unit = unit;
         updateScale(this._map, this._container, this.options);
     }
@@ -134,6 +140,11 @@ function getDistance(latlng1, latlng2) {
 
 }
 
+function getDecimalRoundNum(d) {
+    const multiplier = Math.pow(10, Math.ceil(-Math.log(d) / Math.LN10));
+    return Math.round(d * multiplier) / multiplier;
+}
+
 function getRoundNum(num) {
     const pow10 = Math.pow(10, (`${Math.floor(num)}`).length - 1);
     let d = num / pow10;
@@ -141,7 +152,8 @@ function getRoundNum(num) {
     d = d >= 10 ? 10 :
         d >= 5 ? 5 :
         d >= 3 ? 3 :
-        d >= 2 ? 2 : 1;
+        d >= 2 ? 2 :
+        d >= 1 ? 1 : getDecimalRoundNum(d);
 
     return pow10 * d;
 }

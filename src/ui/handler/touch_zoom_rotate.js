@@ -1,7 +1,6 @@
 // @flow
 
 import DOM from '../../util/dom';
-
 import { bezier, bindAll } from '../../util/util';
 import window from '../../util/window';
 import browser from '../../util/browser';
@@ -9,7 +8,8 @@ import { Event } from '../../util/evented';
 
 import type Map from '../map';
 import type Point from '@mapbox/point-geometry';
-import type Transform from '../../geo/transform';
+import type LngLat from '../../geo/lng_lat';
+import type {TaskID} from '../../util/task_queue';
 
 const inertiaLinearity = 0.15,
     inertiaEasing = bezier(0, 0, inertiaLinearity, 1),
@@ -29,11 +29,13 @@ class TouchZoomRotateHandler {
     _aroundCenter: boolean;
     _rotationDisabled: boolean;
     _startVec: Point;
+    _startAround: LngLat;
     _startScale: number;
     _startBearing: number;
     _gestureIntent: 'rotate' | 'zoom' | void;
     _inertia: Array<[number, number, Point]>;
     _lastTouchEvent: TouchEvent;
+    _frameId: ?TaskID;
 
     /**
      * @private
@@ -69,11 +71,11 @@ class TouchZoomRotateHandler {
      * @example
      *   map.touchZoomRotate.enable({ around: 'center' });
      */
-    enable(options: any) {
+    enable(options: ?{around?: 'center'}) {
         if (this.isEnabled()) return;
         this._el.classList.add('mapboxgl-touch-zoom-rotate');
         this._enabled = true;
-        this._aroundCenter = options && options.around === 'center';
+        this._aroundCenter = !!options && options.around === 'center';
     }
 
     /**
@@ -115,9 +117,11 @@ class TouchZoomRotateHandler {
         if (e.touches.length !== 2) return;
 
         const p0 = DOM.mousePos(this._el, e.touches[0]),
-            p1 = DOM.mousePos(this._el, e.touches[1]);
+            p1 = DOM.mousePos(this._el, e.touches[1]),
+            center = p0.add(p1).div(2);
 
         this._startVec = p0.sub(p1);
+        this._startAround = this._map.transform.pointLocation(center);
         this._gestureIntent = undefined;
         this._inertia = [];
 
@@ -146,7 +150,8 @@ class TouchZoomRotateHandler {
         // Determine 'intent' by whichever threshold is surpassed first,
         // then keep that state for the duration of this gesture.
         if (!this._gestureIntent) {
-            const scalingSignificantly = (Math.abs(1 - scale) > significantScaleThreshold),
+            // when rotation is disabled, any scale change triggers the zoom gesture to start
+            const scalingSignificantly = (this._rotationDisabled && scale !== 1) || (Math.abs(1 - scale) > significantScaleThreshold),
                 rotatingSignificantly = (Math.abs(bearing) > significantRotateThreshold);
 
             if (rotatingSignificantly) {
@@ -163,14 +168,20 @@ class TouchZoomRotateHandler {
         }
 
         this._lastTouchEvent = e;
-        this._map._startAnimation(this._onTouchFrame);
+        if (!this._frameId) {
+            this._frameId = this._map._requestRenderFrame(this._onTouchFrame);
+        }
 
         e.preventDefault();
     }
 
-    _onTouchFrame(tr: Transform) {
+    _onTouchFrame() {
+        this._frameId = null;
+
         const gestureIntent = this._gestureIntent;
         if (!gestureIntent) return;
+
+        const tr = this._map.transform;
 
         if (!this._startScale) {
             this._startScale = tr.scale;
@@ -187,7 +198,7 @@ class TouchZoomRotateHandler {
 
         tr.zoom = tr.scaleZoom(this._startScale * scale);
 
-        tr.setLocationAtPoint(around, aroundPoint);
+        tr.setLocationAtPoint(this._startAround, aroundPoint);
 
         this._map.fire(new Event(gestureIntent, {originalEvent: this._lastTouchEvent}));
         this._map.fire(new Event('move', {originalEvent: this._lastTouchEvent}));
@@ -203,6 +214,10 @@ class TouchZoomRotateHandler {
         const gestureIntent = this._gestureIntent;
         const startScale = this._startScale;
 
+        if (this._frameId) {
+            this._map._cancelRenderFrame(this._frameId);
+            this._frameId = null;
+        }
         delete this._gestureIntent;
         delete this._startScale;
         delete this._startBearing;
@@ -255,7 +270,7 @@ class TouchZoomRotateHandler {
 
         map.easeTo({
             zoom: targetScale,
-            duration: duration,
+            duration,
             easing: inertiaEasing,
             around: this._aroundCenter ? map.getCenter() : map.unproject(p),
             noMoveStart: true

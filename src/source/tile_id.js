@@ -1,12 +1,14 @@
 // @flow
 
-import WhooTS from '@mapbox/whoots-js';
+import {getTileBBox} from '@mapbox/whoots-js';
+import EXTENT from '../data/extent';
+import Point from '@mapbox/point-geometry';
+import MercatorCoordinate from '../geo/mercator_coordinate';
 
 import assert from 'assert';
 import { register } from '../util/web_worker_transfer';
-import Coordinate from '../geo/coordinate';
 
-class CanonicalTileID {
+export class CanonicalTileID {
     z: number;
     x: number;
     y: number;
@@ -28,7 +30,7 @@ class CanonicalTileID {
 
     // given a list of urls, choose a url template and return a tile URL
     url(urls: Array<string>, scheme: ?string) {
-        const bbox = WhooTS.getTileBBox(this.x, this.y, this.z);
+        const bbox = getTileBBox(this.x, this.y, this.z);
         const quadkey = getQuadkey(this.z, this.x, this.y);
 
         return urls[(this.x + this.y) % urls.length]
@@ -39,9 +41,16 @@ class CanonicalTileID {
             .replace('{quadkey}', quadkey)
             .replace('{bbox-epsg-3857}', bbox);
     }
+
+    getTilePoint(coord: MercatorCoordinate) {
+        const tilesAtZoom = Math.pow(2, this.z);
+        return new Point(
+            (coord.x * tilesAtZoom - this.x) * EXTENT,
+            (coord.y * tilesAtZoom - this.y) * EXTENT);
+    }
 }
 
-class UnwrappedTileID {
+export class UnwrappedTileID {
     wrap: number;
     canonical: CanonicalTileID;
     key: number;
@@ -53,7 +62,7 @@ class UnwrappedTileID {
     }
 }
 
-class OverscaledTileID {
+export class OverscaledTileID {
     overscaledZ: number;
     wrap: number;
     canonical: CanonicalTileID;
@@ -68,6 +77,10 @@ class OverscaledTileID {
         this.key = calculateKey(wrap, overscaledZ, x, y);
     }
 
+    equals(id: OverscaledTileID) {
+        return this.overscaledZ === id.overscaledZ && this.wrap === id.wrap && this.canonical.equals(id.canonical);
+    }
+
     scaledTo(targetZ: number) {
         assert(targetZ <= this.overscaledZ);
         const zDifference = this.canonical.z - targetZ;
@@ -79,6 +92,10 @@ class OverscaledTileID {
     }
 
     isChildOf(parent: OverscaledTileID) {
+        if (parent.wrap !== this.wrap) {
+            // We can't be a child if we're in a different world copy
+            return false;
+        }
         const zDifference = this.canonical.z - parent.canonical.z;
         // We're first testing for z == 0, to avoid a 32 bit shift, which is undefined.
         return parent.overscaledZ === 0 || (
@@ -122,6 +139,10 @@ class OverscaledTileID {
         return new OverscaledTileID(this.overscaledZ, 0, this.canonical.z, this.canonical.x, this.canonical.y);
     }
 
+    unwrapTo(wrap: number) {
+        return new OverscaledTileID(this.overscaledZ, wrap, this.canonical.z, this.canonical.x, this.canonical.y);
+    }
+
     overscaleFactor() {
         return Math.pow(2, this.overscaledZ - this.canonical.z);
     }
@@ -134,8 +155,8 @@ class OverscaledTileID {
         return `${this.overscaledZ}/${this.canonical.x}/${this.canonical.y}`;
     }
 
-    toCoordinate() {
-        return new Coordinate(this.canonical.x + Math.pow(2, this.wrap), this.canonical.y, this.canonical.z);
+    getTilePoint(coord: MercatorCoordinate) {
+        return this.canonical.getTilePoint(new MercatorCoordinate(coord.x - this.wrap, coord.y));
     }
 }
 
@@ -158,12 +179,3 @@ function getQuadkey(z, x, y) {
 
 register('CanonicalTileID', CanonicalTileID);
 register('OverscaledTileID', OverscaledTileID, {omit: ['posMatrix']});
-
-const exported = {
-    CanonicalTileID: CanonicalTileID,
-    OverscaledTileID: OverscaledTileID,
-    UnwrappedTileID: UnwrappedTileID
-};
-
-export default exported;
-export { CanonicalTileID, OverscaledTileID, UnwrappedTileID };

@@ -1,29 +1,17 @@
 import { test } from 'mapbox-gl-js-test';
 import window from '../../../../src/util/window';
-import Map from '../../../../src/ui/map';
+import { createMap } from '../../../util';
 import GeolocateControl from '../../../../src/ui/control/geolocate_control';
 
 // window and navigator globals need to be set for mock-geolocation
 global.window = {};
 global.navigator = {};
-const geolocation = require('mock-geolocation');
+const geolocation = require('mock-geolocation'); // eslint-disable-line import/no-commonjs
 geolocation.use();
 
 // assign the mock geolocation to window
 global.window.navigator = global.navigator;
 window.navigator.geolocation = global.window.navigator.geolocation;
-
-function createMap() {
-    const container = window.document.createElement('div');
-    return new Map({
-        container: container,
-        style: {
-            version: 8,
-            sources: {},
-            layers: []
-        }
-    });
-}
 
 // convert the coordinates of a LngLat object to a fixed number of digits
 function lngLatAsFixed(lngLat, digits) {
@@ -34,9 +22,9 @@ function lngLatAsFixed(lngLat, digits) {
 }
 
 test('GeolocateControl with no options', (t) => {
+    const map = createMap(t);
     t.plan(0);
 
-    const map = createMap();
     const geolocate = new GeolocateControl();
     map.addControl(geolocate);
     t.end();
@@ -45,7 +33,7 @@ test('GeolocateControl with no options', (t) => {
 test('GeolocateControl error event', (t) => {
     t.plan(2);
 
-    const map = createMap();
+    const map = createMap(t);
     const geolocate = new GeolocateControl();
     map.addControl(geolocate);
 
@@ -63,7 +51,7 @@ test('GeolocateControl error event', (t) => {
 test('GeolocateControl geolocate event', (t) => {
     t.plan(4);
 
-    const map = createMap();
+    const map = createMap(t);
     const geolocate = new GeolocateControl();
     map.addControl(geolocate);
 
@@ -80,10 +68,35 @@ test('GeolocateControl geolocate event', (t) => {
     geolocation.send({latitude: 10, longitude: 20, accuracy: 30, timestamp: 40});
 });
 
+test('GeolocateControl trigger', (t) => {
+    t.plan(1);
+
+    const map = createMap(t);
+    const geolocate = new GeolocateControl();
+    map.addControl(geolocate);
+
+    geolocate.on('geolocate', () => {
+        t.end();
+    });
+    t.true(geolocate.trigger());
+    geolocation.send({latitude: 10, longitude: 20, accuracy: 30, timestamp: 40});
+});
+
+test('GeolocateControl trigger before added to map', (t) => {
+    t.plan(2);
+    t.stub(console, 'warn');
+
+    const geolocate = new GeolocateControl();
+
+    t.false(geolocate.trigger());
+    t.ok(console.warn.calledWith('Geolocate control triggered before added to a map'));
+    t.end();
+});
+
 test('GeolocateControl geolocate fitBoundsOptions', (t) => {
     t.plan(1);
 
-    const map = createMap();
+    const map = createMap(t);
     const geolocate = new GeolocateControl({
         fitBoundsOptions: {
             linear: true,
@@ -103,10 +116,36 @@ test('GeolocateControl geolocate fitBoundsOptions', (t) => {
     geolocation.send({latitude: 10, longitude: 20, accuracy: 1});
 });
 
+test('GeolocateControl non-zero bearing', (t) => {
+    t.plan(3);
+
+    const map = createMap(t);
+    map.setBearing(45);
+    const geolocate = new GeolocateControl({
+        fitBoundsOptions: {
+            linear: true,
+            duration: 0,
+            maxZoom: 10
+        }
+    });
+    map.addControl(geolocate);
+
+    const click = new window.Event('click');
+
+    map.once('moveend', () => {
+        t.deepEqual(lngLatAsFixed(map.getCenter(), 4), { lat: 10, lng: 20 }, 'map centered on location');
+        t.equal(map.getBearing(), 45, 'map bearing retained');
+        t.equal(map.getZoom(), 10, 'geolocate fitBounds maxZoom');
+        t.end();
+    });
+    geolocate._geolocateButton.dispatchEvent(click);
+    geolocation.send({latitude: 10, longitude: 20, accuracy: 1});
+});
+
 test('GeolocateControl no watching map camera on geolocation', (t) => {
     t.plan(6);
 
-    const map = createMap();
+    const map = createMap(t);
     const geolocate = new GeolocateControl({
         fitBoundsOptions: {
             maxZoom: 20,
@@ -149,7 +188,7 @@ test('GeolocateControl no watching map camera on geolocation', (t) => {
 test('GeolocateControl watching map updates recenter on location with dot', (t) => {
     t.plan(6);
 
-    const map = createMap();
+    const map = createMap(t);
     const geolocate = new GeolocateControl({
         trackUserLocation: true,
         showUserLocation: true,
@@ -187,9 +226,9 @@ test('GeolocateControl watching map updates recenter on location with dot', (t) 
 });
 
 test('GeolocateControl watching map background event', (t) => {
+    const map = createMap(t);
     t.plan(0);
 
-    const map = createMap();
     const geolocate = new GeolocateControl({
         trackUserLocation: true,
         fitBoundsOptions: {
@@ -225,7 +264,7 @@ test('GeolocateControl watching map background event', (t) => {
 test('GeolocateControl watching map background state', (t) => {
     t.plan(1);
 
-    const map = createMap();
+    const map = createMap(t);
     const geolocate = new GeolocateControl({
         trackUserLocation: true,
         fitBoundsOptions: {
@@ -264,9 +303,9 @@ test('GeolocateControl watching map background state', (t) => {
 });
 
 test('GeolocateControl trackuserlocationstart event', (t) => {
+    const map = createMap(t);
     t.plan(0);
 
-    const map = createMap();
     const geolocate = new GeolocateControl({
         trackUserLocation: true,
         fitBoundsOptions: {

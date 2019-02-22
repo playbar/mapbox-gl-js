@@ -109,6 +109,29 @@ test('Evented', (t) => {
         t.end();
     });
 
+    t.test('has backward compatibility for fire(string, object) API', (t) => {
+        const evented = new Evented();
+        const listener = t.spy();
+        evented.on('a', listener);
+        evented.fire('a', {foo: 'bar'});
+        t.ok(listener.calledOnce);
+        t.ok(listener.firstCall.args[0].foo, 'bar');
+        t.end();
+    });
+
+    t.test('on is idempotent', (t) => {
+        const evented = new Evented();
+        const listenerA = t.spy();
+        const listenerB = t.spy();
+        evented.on('a', listenerA);
+        evented.on('a', listenerB);
+        evented.on('a', listenerA);
+        evented.fire(new Event('a'));
+        t.ok(listenerA.calledOnce);
+        t.ok(listenerA.calledBefore(listenerB));
+        t.end();
+    });
+
     t.test('evented parents', (t) => {
 
         t.test('adds parents with "setEventedParent"', (t) => {

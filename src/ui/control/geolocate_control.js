@@ -1,19 +1,27 @@
 // @flow
 
 import { Event, Evented } from '../../util/evented';
-
 import DOM from '../../util/dom';
 import window from '../../util/window';
-import { extend, bindAll } from '../../util/util';
+import { extend, bindAll, warnOnce } from '../../util/util';
 import assert from 'assert';
 import LngLat from '../../geo/lng_lat';
 import Marker from '../marker';
 
 import type Map from '../map';
+import type { AnimationOptions, CameraOptions } from '../camera';
 
-const defaultOptions = {
+type Options = {
+    positionOptions?: PositionOptions,
+    fitBoundsOptions?: AnimationOptions & CameraOptions,
+    trackUserLocation?: boolean,
+    showUserLocation?: boolean
+};
+
+const defaultOptions: Options = {
     positionOptions: {
         enableHighAccuracy: false,
+        maximumAge: 0,
         timeout: 6000 /* 6 sec */
     },
     fitBoundsOptions: {
@@ -66,7 +74,7 @@ function checkGeolocationSupport(callback) {
  * @implements {IControl}
  * @param {Object} [options]
  * @param {Object} [options.positionOptions={enableHighAccuracy: false, timeout: 6000}] A Geolocation API [PositionOptions](https://developer.mozilla.org/en-US/docs/Web/API/PositionOptions) object.
- * @param {Object} [options.fitBoundsOptions={maxZoom: 15}] A [`fitBounds`](#Map#fitBounds) options object to use when the map is panned and zoomed to the user's location. The default is to use a `maxZoom` of 15 to limit how far the map will zoom in for very accurate locations.
+ * @param {Object} [options.fitBoundsOptions={maxZoom: 15}] A [`fitBounds`](#map#fitbounds) options object to use when the map is panned and zoomed to the user's location. The default is to use a `maxZoom` of 15 to limit how far the map will zoom in for very accurate locations.
  * @param {Object} [options.trackUserLocation=false] If `true` the Geolocate Control becomes a toggle button and when active the map will receive updates to the user's location as it changes.
  * @param {Object} [options.showUserLocation=true] By default a dot will be shown on the map at the user's location. Set to `false` to disable.
  *
@@ -77,10 +85,11 @@ function checkGeolocationSupport(callback) {
  *     },
  *     trackUserLocation: true
  * }));
+ * @see [Locate the user](https://www.mapbox.com/mapbox-gl-js/example/locate-user/)
  */
 class GeolocateControl extends Evented {
     _map: Map;
-    options: any;
+    options: Options;
     _container: HTMLElement;
     _dotElement: HTMLElement;
     _geolocateButton: HTMLElement;
@@ -89,8 +98,9 @@ class GeolocateControl extends Evented {
     _watchState: string;
     _lastKnownPosition: any;
     _userLocationDotMarker: Marker;
+    _setup: boolean; // set to true once the control has been setup
 
-    constructor(options: any) {
+    constructor(options: Options) {
         super();
         this.options = extend({}, defaultOptions, options);
 
@@ -100,8 +110,7 @@ class GeolocateControl extends Evented {
             '_finish',
             '_setupUI',
             '_updateCamera',
-            '_updateMarker',
-            '_onClickGeolocate'
+            '_updateMarker'
         ], this);
     }
 
@@ -120,7 +129,7 @@ class GeolocateControl extends Evented {
         }
 
         // clear the marker from the map
-        if (this.options.showUserLocation) {
+        if (this.options.showUserLocation && this._userLocationDotMarker) {
             this._userLocationDotMarker.remove();
         }
 
@@ -178,8 +187,10 @@ class GeolocateControl extends Evented {
     _updateCamera(position: Position) {
         const center = new LngLat(position.coords.longitude, position.coords.latitude);
         const radius = position.coords.accuracy;
+        const bearing = this._map.getBearing();
+        const options = extend({bearing}, this.options.fitBoundsOptions);
 
-        this._map.fitBounds(center.toBounds(radius), this.options.fitBoundsOptions, {
+        this._map.fitBounds(center.toBounds(radius), options, {
             geolocateSource: true // tag this camera change so it won't cause the control to change to background state
         });
     }
@@ -250,7 +261,10 @@ class GeolocateControl extends Evented {
     }
 
     _setupUI(supported: boolean) {
-        if (supported === false) return;
+        if (supported === false) {
+            warnOnce('Geolocation support is not available, the GeolocateControl will not be visible.');
+            return;
+        }
         this._container.addEventListener('contextmenu', (e: MouseEvent) => e.preventDefault());
         this._geolocateButton = DOM.create('button',
             `${className}-icon ${className}-geolocate`,
@@ -273,7 +287,9 @@ class GeolocateControl extends Evented {
         }
 
         this._geolocateButton.addEventListener('click',
-            this._onClickGeolocate.bind(this));
+            this.trigger.bind(this));
+
+        this._setup = true;
 
         // when the camera is changed (and it's not as a result of the Geolocation Control) change
         // the watch mode to background watch, so that the marker is updated but not the camera.
@@ -290,7 +306,16 @@ class GeolocateControl extends Evented {
         }
     }
 
-    _onClickGeolocate() {
+    /**
+     * Trigger a geolocation
+     *
+     * @returns {boolean} Returns `false` if called before control was added to a map, otherwise returns `true`.
+     */
+    trigger() {
+        if (!this._setup) {
+            warnOnce('Geolocate control triggered before added to a map');
+            return false;
+        }
         if (this.options.trackUserLocation) {
             // update watchState and do any outgoing state cleanup
             switch (this._watchState) {
@@ -373,6 +398,8 @@ class GeolocateControl extends Evented {
             // the user declines to share their location in Firefox
             this._timeoutId = setTimeout(this._finish, 10000 /* 10sec */);
         }
+
+        return true;
     }
 
     _clearWatch() {

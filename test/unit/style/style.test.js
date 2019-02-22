@@ -4,7 +4,6 @@ import Style from '../../../src/style/style';
 import SourceCache from '../../../src/source/source_cache';
 import StyleLayer from '../../../src/style/style_layer';
 import Transform from '../../../src/geo/transform';
-import EvaluationParameters from '../../../src/style/evaluation_parameters';
 import { extend } from '../../../src/util/util';
 import { Event, Evented } from '../../../src/util/evented';
 import window from '../../../src/util/window';
@@ -52,6 +51,10 @@ class StubMap extends Evented {
 
     _transformRequest(url) {
         return { url };
+    }
+
+    _getMapId() {
+        return 1;
     }
 }
 
@@ -160,6 +163,14 @@ test('Style#loadURL', (t) => {
 
         window.server.respondWith(JSON.stringify(createStyleJSON({version: 'invalid'})));
         window.server.respond();
+    });
+
+    t.test('cancels pending requests if removed', (t) => {
+        const style = new Style(new StubMap());
+        style.loadURL('style.json');
+        style._remove();
+        t.equal(window.server.lastRequest.aborted, true);
+        t.end();
     });
 
     t.end();
@@ -892,7 +903,7 @@ test('Style#addLayer', (t) => {
                     "coordinates": [ 0, 0]
                 }
             };
-            const layer = {id: 'inline-source-layer', type: 'circle', source: source };
+            const layer = {id: 'inline-source-layer', type: 'circle', source };
             style.addLayer(layer);
             t.deepEqual(layer.source, source);
             t.end();
@@ -1082,7 +1093,7 @@ test('Style#addLayer', (t) => {
         const layer = {id: 'c', type: 'background'};
 
         style.on('style.load', () => {
-            style.on('error', (error)=>{
+            style.on('error', (error) => {
                 t.match(error.error, /does not exist on this map/);
                 t.end();
             });
@@ -1273,6 +1284,23 @@ test('Style#moveLayer', (t) => {
         });
     });
 
+    t.test('moves to existing location', (t) => {
+        const style = new Style(new StubMap());
+        style.loadJSON(createStyleJSON({
+            layers: [
+                {id: 'a', type: 'background'},
+                {id: 'b', type: 'background'},
+                {id: 'c', type: 'background'}
+            ]
+        }));
+
+        style.on('style.load', () => {
+            style.moveLayer('b', 'b');
+            t.deepEqual(style._order, ['a', 'b', 'c']);
+            t.end();
+        });
+    });
+
     t.end();
 });
 
@@ -1362,6 +1390,39 @@ test('Style#setPaintProperty', (t) => {
         });
     });
 
+    t.test('respects validate option', (t) => {
+        const style = new Style(new StubMap());
+        style.loadJSON({
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "background",
+                    "type": "background"
+                }
+            ]
+        });
+
+        style.on('style.load', () => {
+            const backgroundLayer = style.getLayer('background');
+            t.stub(console, 'error');
+            const validate = t.spy(backgroundLayer, '_validate');
+
+            style.setPaintProperty('background', 'background-color', 'notacolor', {validate: false});
+            t.deepEqual(validate.args[0][4], {validate: false});
+            t.ok(console.error.notCalled);
+
+            t.ok(style._changed);
+            style.update({});
+
+            style.setPaintProperty('background', 'background-color', 'alsonotacolor');
+            t.ok(console.error.calledOnce, 'validates input by default');
+            t.deepEqual(validate.args[1][4], {});
+
+            t.end();
+        });
+    });
+
     t.end();
 });
 
@@ -1431,6 +1492,47 @@ test('Style#setLayoutProperty', (t) => {
             value.stops[0][0] = 1;
             style.setLayoutProperty('line', 'line-cap', value);
             t.ok(style._changed);
+
+            t.end();
+        });
+    });
+
+    t.test('respects validate option', (t) => {
+        const style = new Style(new StubMap());
+        style.loadJSON({
+            "version": 8,
+            "sources": {
+                "geojson": {
+                    "type": "geojson",
+                    "data": {
+                        "type": "FeatureCollection",
+                        "features": []
+                    }
+                }
+            },
+            "layers": [
+                {
+                    "id": "line",
+                    "type": "line",
+                    "source": "geojson"
+                }
+            ]
+        });
+
+        style.on('style.load', () => {
+            const lineLayer = style.getLayer('line');
+            t.stub(console, 'error');
+            const validate = t.spy(lineLayer, '_validate');
+
+            style.setLayoutProperty('line', 'line-cap', 'invalidcap', {validate: false});
+            t.deepEqual(validate.args[0][4], {validate: false});
+            t.ok(console.error.notCalled);
+            t.ok(style._changed);
+            style.update({});
+
+            style.setLayoutProperty('line', 'line-cap', 'differentinvalidcap');
+            t.ok(console.error.calledOnce, 'validates input by default');
+            t.deepEqual(validate.args[1][4], {});
 
             t.end();
         });
@@ -1586,6 +1688,35 @@ test('Style#setFilter', (t) => {
         });
     });
 
+    t.test('validates filter by default', (t) => {
+        const style = createStyle();
+        t.stub(console, 'error');
+        style.on('style.load', () => {
+            style.setFilter('symbol', 'notafilter');
+            t.deepEqual(style.getFilter('symbol'), ['==', 'id', 0]);
+            t.ok(console.error.calledOnce);
+            style.update({}); // trigger dispatcher broadcast
+            t.end();
+        });
+    });
+
+    t.test('respects validate option', (t) => {
+        const style = createStyle();
+
+        style.on('style.load', () => {
+            style.dispatcher.broadcast = function(key, value) {
+                t.equal(key, 'updateLayers');
+                t.deepEqual(value.layers[0].id, 'symbol');
+                t.deepEqual(value.layers[0].filter, 'notafilter');
+                t.end();
+            };
+
+            style.setFilter('symbol', 'notafilter', {validate: false});
+            t.deepEqual(style.getFilter('symbol'), 'notafilter');
+            style.update({}); // trigger dispatcher broadcast
+        });
+    });
+
     t.end();
 });
 
@@ -1647,7 +1778,7 @@ test('Style#queryRenderedFeatures', (t) => {
     const transform = new Transform();
     transform.resize(512, 512);
 
-    function queryMapboxFeatures(layers, queryGeom, scale, params) {
+    function queryMapboxFeatures(layers, getFeatureState, queryGeom, cameraQueryGeom, scale, params) {
         const features = {
             'land': [{
                 type: 'Feature',
@@ -1753,17 +1884,17 @@ test('Style#queryRenderedFeatures', (t) => {
         style.sourceCaches.mapbox.transform = transform;
         style.sourceCaches.other.transform = transform;
 
-        style.update(new EvaluationParameters(0));
+        style.update(0);
         style._updateSources(transform);
 
         t.test('returns feature type', (t) => {
-            const results = style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {}, transform);
+            const results = style.queryRenderedFeatures([{x: 0, y: 0}], {}, transform);
             t.equal(results[0].geometry.type, 'Line');
             t.end();
         });
 
         t.test('filters by `layers` option', (t) => {
-            const results = style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {layers: ['land']}, transform);
+            const results = style.queryRenderedFeatures([{x: 0, y: 0}], {layers: ['land']}, transform);
             t.equal(results.length, 2);
             t.end();
         });
@@ -1773,26 +1904,26 @@ test('Style#queryRenderedFeatures', (t) => {
             t.stub(style, 'fire').callsFake((event) => {
                 if (event.error && event.error.message.includes('parameters.layers must be an Array.')) errors++;
             });
-            style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {layers:'string'}, transform);
+            style.queryRenderedFeatures([{x: 0, y: 0}], {layers:'string'}, transform);
             t.equals(errors, 1);
             t.end();
         });
 
         t.test('includes layout properties', (t) => {
-            const results = style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {}, transform);
+            const results = style.queryRenderedFeatures([{x: 0, y: 0}], {}, transform);
             const layout = results[0].layer.layout;
             t.deepEqual(layout['line-cap'], 'round');
             t.end();
         });
 
         t.test('includes paint properties', (t) => {
-            const results = style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {}, transform);
+            const results = style.queryRenderedFeatures([{x: 0, y: 0}], {}, transform);
             t.deepEqual(results[2].layer.paint['line-color'], 'red');
             t.end();
         });
 
         t.test('includes metadata', (t) => {
-            const results = style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {}, transform);
+            const results = style.queryRenderedFeatures([{x: 0, y: 0}], {}, transform);
 
             const layer = results[1].layer;
             t.equal(layer.metadata.something, 'else');
@@ -1801,14 +1932,14 @@ test('Style#queryRenderedFeatures', (t) => {
         });
 
         t.test('include multiple layers', (t) => {
-            const results = style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {layers: ['land', 'landref']}, transform);
+            const results = style.queryRenderedFeatures([{x: 0, y: 0}], {layers: ['land', 'landref']}, transform);
             t.equals(results.length, 3);
             t.end();
         });
 
         t.test('does not query sources not implicated by `layers` parameter', (t) => {
             style.sourceCaches.mapbox.queryRenderedFeatures = function() { t.fail(); };
-            style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {layers: ['land--other']}, transform);
+            style.queryRenderedFeatures([{x: 0, y: 0}], {layers: ['land--other']}, transform);
             t.end();
         });
 
@@ -1817,7 +1948,7 @@ test('Style#queryRenderedFeatures', (t) => {
             t.stub(style, 'fire').callsFake((event) => {
                 if (event.error && event.error.message.includes('does not exist in the map\'s style and cannot be queried for features.')) errors++;
             });
-            const results = style.queryRenderedFeatures([{column: 1, row: 1, zoom: 1}], {layers:['merp']}, transform);
+            const results = style.queryRenderedFeatures([{x: 0, y: 0}], {layers:['merp']}, transform);
             t.equals(errors, 1);
             t.equals(results.length, 0);
             t.end();
@@ -1882,6 +2013,7 @@ test('Style#query*Features', (t) => {
 
     t.beforeEach((callback) => {
         transform = new Transform();
+        transform.resize(100, 100);
         style = new Style(new StubMap());
         style.loadJSON({
             "version": 8,
@@ -1910,7 +2042,7 @@ test('Style#query*Features', (t) => {
     });
 
     t.test('queryRenderedFeatures emits an error on incorrect filter', (t) => {
-        t.deepEqual(style.queryRenderedFeatures([10, 100], {filter: 7}, transform), []);
+        t.deepEqual(style.queryRenderedFeatures([{x: 0, y: 0}], {filter: 7}, transform), []);
         t.match(onError.args[0][0].error.message, /queryRenderedFeatures\.filter/);
         t.end();
     });
@@ -1919,7 +2051,7 @@ test('Style#query*Features', (t) => {
 });
 
 test('Style#addSourceType', (t) => {
-    const _types = { 'existing': function () {} };
+    const _types = { 'existing' () {} };
 
     t.stub(Style, 'getSourceType').callsFake(name => _types[name]);
     t.stub(Style, 'setSourceType').callsFake((name, create) => {

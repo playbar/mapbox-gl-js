@@ -2,7 +2,7 @@
 
 import Point from '@mapbox/point-geometry';
 
-import { mat4, vec4 } from '@mapbox/gl-matrix';
+import { mat4, vec4 } from 'gl-matrix';
 import * as symbolSize from './symbol_size';
 import { addDynamicAttributes } from '../data/bucket/symbol_bucket';
 import properties from '../style/style_layer/symbol_style_layer_properties';
@@ -18,7 +18,7 @@ import type {
 } from '../data/array_types';
 import { WritingMode } from '../symbol/shaping';
 
-export { updateLineLabels, getLabelPlaneMatrix, getGlCoordMatrix, project, placeFirstAndLastGlyph, xyTransformMat4 };
+export { updateLineLabels, hideGlyphs, getLabelPlaneMatrix, getGlCoordMatrix, project, placeFirstAndLastGlyph, xyTransformMat4 };
 
 /*
  * # Overview of coordinate spaces
@@ -261,8 +261,8 @@ function requiresOrientationChange(writingMode, firstPoint, lastPoint, aspectRat
 
 function placeGlyphsAlongLine(symbol, fontSize, flip, keepUpright, posMatrix, labelPlaneMatrix, glCoordMatrix, glyphOffsetArray, lineVertexArray, dynamicLayoutVertexArray, anchorPoint, tileAnchorPoint, projectionCache, aspectRatio) {
     const fontScale = fontSize / 24;
-    const lineOffsetX = symbol.lineOffsetX * fontSize;
-    const lineOffsetY = symbol.lineOffsetY * fontSize;
+    const lineOffsetX = symbol.lineOffsetX * fontScale;
+    const lineOffsetY = symbol.lineOffsetY * fontScale;
 
     let placedGlyphs;
     if (symbol.numGlyphs > 1) {

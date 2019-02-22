@@ -8,7 +8,7 @@ import window from '../../../src/util/window';
 function createSource(options) {
     window.useFakeHTMLCanvasGetContext();
 
-    const c = window.document.createElement('canvas');
+    const c = options && options.canvas || window.document.createElement('canvas');
     c.width = 20;
     c.height = 20;
 
@@ -17,7 +17,8 @@ function createSource(options) {
         coordinates: [[0, 0], [1, 0], [1, 1], [0, 1]],
     }, options);
 
-    const source = new CanvasSource('id', options, { send: function() {} }, options.eventedParent);
+    const source = new CanvasSource('id', options, { send() {} }, options.eventedParent);
+
     source.canvas = c;
 
     return source;
@@ -30,7 +31,7 @@ class StubMap extends Evented {
         this.style = {};
     }
 
-    _rerender() {
+    triggerRepaint() {
         this.fire(new Event('rerender'));
     }
 }
@@ -51,6 +52,48 @@ test('CanvasSource', (t) => {
         source.on('data', (e) => {
             if (e.dataType === 'source' && e.sourceDataType === 'metadata') {
                 t.equal(typeof source.play, 'function');
+                t.end();
+            }
+        });
+
+        source.onAdd(new StubMap());
+    });
+
+    t.test('self-validates', (t) => {
+        const stub = t.stub(console, 'error');
+        createSource({ coordinates: [] });
+        t.ok(stub.called, 'should error when `coordinates` array parameter has incorrect number of elements');
+        stub.resetHistory();
+
+        createSource({ coordinates: 'asdf' });
+        t.ok(stub.called, 'should error with non-array `coordinates` parameter');
+        stub.resetHistory();
+
+        createSource({ animate: 8 });
+        t.ok(stub.called, 'should error with non-boolean `animate` parameter');
+        stub.resetHistory();
+
+        createSource({ canvas: {} });
+        t.ok(stub.called, 'should error with non-string/non-Canvas `canvas` parameter');
+        stub.resetHistory();
+
+        const canvasEl = window.document.createElement('canvas');
+        createSource({ canvas: canvasEl });
+        t.notOk(stub.called, 'should not error with HTMLCanvasElement');
+        stub.resetHistory();
+
+        t.end();
+    });
+
+    t.test('can be initialized with HTML element', (t) => {
+        const el = window.document.createElement('canvas');
+        const source = createSource({
+            canvas: el
+        });
+
+        source.on('data', (e) => {
+            if (e.dataType === 'source' && e.sourceDataType === 'metadata') {
+                t.equal(source.canvas, el);
                 t.end();
             }
         });
@@ -137,7 +180,6 @@ test('CanvasSource#serialize', (t) => {
 
     const serialized = source.serialize();
     t.equal(serialized.type, 'canvas');
-    t.ok(serialized.canvas);
     t.deepEqual(serialized.coordinates, [[0, 0], [1, 0], [1, 1], [0, 1]]);
 
     window.restore();

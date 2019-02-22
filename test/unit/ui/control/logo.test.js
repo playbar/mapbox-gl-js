@@ -1,12 +1,9 @@
 import { test } from 'mapbox-gl-js-test';
+import { createMap as globalCreateMap } from '../../../util';
 import VectorTileSource from '../../../../src/source/vector_tile_source';
-import window from '../../../../src/util/window';
-import Map from '../../../../src/ui/map';
 
-function createMap(logoPosition, logoRequired) {
-    const container = window.document.createElement('div');
-    return new Map({
-        container: container,
+function createMap(t, logoPosition, logoRequired) {
+    return globalCreateMap(t, {
         style: {
             version: 8,
             sources: {
@@ -26,9 +23,10 @@ function createMap(logoPosition, logoRequired) {
 }
 
 function createSource(options, logoRequired) {
-    const source = new VectorTileSource('id', options, { send: function () {} });
+    const source = new VectorTileSource('id', options, { send () {} });
     source.onAdd({
-        transform: { angle: 0, pitch: 0, showCollisionBoxes: false }
+        transform: { angle: 0, pitch: 0, showCollisionBoxes: false },
+        _getMapId: () => 1
     });
     source.on('error', (e) => {
         throw e.error;
@@ -38,7 +36,7 @@ function createSource(options, logoRequired) {
     return source;
 }
 test('LogoControl appears in bottom-left by default', (t) => {
-    const map = createMap();
+    const map = createMap(t);
     map.on('load', () => {
         t.equal(map.getContainer().querySelectorAll(
             '.mapboxgl-ctrl-bottom-left .mapboxgl-ctrl-logo'
@@ -48,7 +46,7 @@ test('LogoControl appears in bottom-left by default', (t) => {
 });
 
 test('LogoControl appears in the position specified by the position option', (t) => {
-    const map = createMap('top-left');
+    const map = createMap(t, 'top-left');
     map.on('load', () => {
         t.equal(map.getContainer().querySelectorAll(
             '.mapboxgl-ctrl-top-left .mapboxgl-ctrl-logo'
@@ -58,14 +56,14 @@ test('LogoControl appears in the position specified by the position option', (t)
 });
 
 test('LogoControl is not displayed when the mapbox_logo property is false', (t) => {
-    const map = createMap('top-left', false);
+    const map = createMap(t, 'top-left', false);
     map.on('load', () => {
         t.equal(map.getContainer().querySelectorAll('.mapboxgl-ctrl-top-left > .mapboxgl-ctrl')[0].style.display, 'none');
         t.end();
     });
 });
-test('LogoControl is not added more than once', (t)=>{
-    const map = createMap();
+test('LogoControl is not added more than once', (t) => {
+    const map = createMap(t);
     const source = createSource({
         minzoom: 1,
         maxzoom: 10,
@@ -74,14 +72,29 @@ test('LogoControl is not added more than once', (t)=>{
             "http://example.com/{z}/{x}/{y}.png"
         ]
     });
-    map.on('load', ()=>{
+    map.on('load', () => {
         t.equal(map.getContainer().querySelectorAll('.mapboxgl-ctrl-logo').length, 1, 'first LogoControl');
         map.addSource('source2', source);
-        map.on('sourcedata', (e)=>{
+        map.on('sourcedata', (e) => {
             if (e.isSourceLoaded && e.sourceId === 'source2' && e.sourceDataType === 'metadata') {
                 t.equal(map.getContainer().querySelectorAll('.mapboxgl-ctrl-logo').length, 1, 'only one LogoControl is added with multiple sources');
                 t.end();
             }
         });
     });
+});
+
+test('LogoControl appears in compact mode if container is less then 250 pixel wide', (t) => {
+    const map = createMap(t);
+    const container = map.getContainer();
+
+    Object.defineProperty(map.getCanvasContainer(), 'offsetWidth', {value: 255, configurable: true});
+    map.resize();
+    t.equal(container.querySelectorAll('.mapboxgl-ctrl-logo:not(.mapboxgl-compact)').length, 1);
+
+    Object.defineProperty(map.getCanvasContainer(), 'offsetWidth', {value: 245, configurable: true});
+    map.resize();
+    t.equal(container.querySelectorAll('.mapboxgl-ctrl-logo.mapboxgl-compact').length, 1);
+
+    t.end();
 });

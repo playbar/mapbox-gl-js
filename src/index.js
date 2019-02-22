@@ -3,7 +3,6 @@
 import assert from 'assert';
 import supported from '@mapbox/mapbox-gl-supported';
 
-import browser from './util/browser';
 import { version } from '../package.json';
 import Map from './ui/map';
 import NavigationControl from './ui/control/navigation_control';
@@ -17,14 +16,16 @@ import Style from './style/style';
 import LngLat from './geo/lng_lat';
 import LngLatBounds from './geo/lng_lat_bounds';
 import Point from '@mapbox/point-geometry';
+import MercatorCoordinate from './geo/mercator_coordinate';
+import {Evented} from './util/evented';
 import config from './util/config';
 import {setRTLTextPlugin} from './source/rtl_text_plugin';
+import WorkerPool from './util/worker_pool';
 
 const exported = {
     version,
     supported,
-    workerCount: Math.max(Math.floor(browser.hardwareConcurrency / 2), 1),
-    setRTLTextPlugin: setRTLTextPlugin,
+    setRTLTextPlugin,
     Map,
     NavigationControl,
     GeolocateControl,
@@ -37,6 +38,8 @@ const exported = {
     LngLat,
     LngLatBounds,
     Point,
+    MercatorCoordinate,
+    Evented,
     config,
 
     /**
@@ -47,12 +50,42 @@ const exported = {
      * mapboxgl.accessToken = myAccessToken;
      * @see [Display a map](https://www.mapbox.com/mapbox-gl-js/examples/)
      */
-    get accessToken() {
+    get accessToken(): ?string {
         return config.ACCESS_TOKEN;
     },
 
     set accessToken(token: string) {
         config.ACCESS_TOKEN = token;
+    },
+    /**
+     * Gets and sets the map's default API URL for requesting tiles, styles, sprites, and glyphs
+     *
+     * @var {string} url
+     * @example
+     * mapboxgl.baseApiUrl = 'https://api.mapbox.com';
+     */
+    get baseApiUrl(): ?string {
+        return config.API_URL;
+    },
+
+    set baseApiUrl(url: string) {
+        config.API_URL = url;
+    },
+
+    get workerCount(): number {
+        return WorkerPool.workerCount;
+    },
+
+    set workerCount(count: number) {
+        WorkerPool.workerCount = count;
+    },
+
+    get maxParallelImageRequests(): number {
+        return config.MAX_PARALLEL_IMAGE_REQUESTS;
+    },
+
+    set maxParallelImageRequests(numRequests: number) {
+        config.MAX_PARALLEL_IMAGE_REQUESTS = numRequests;
     },
 
     workerUrl: ''
@@ -87,7 +120,7 @@ const exported = {
  * @param {string} pluginURL URL pointing to the Mapbox RTL text plugin source.
  * @param {Function} callback Called with an error argument if there is an error.
  * @example
- * mapboxgl.setRTLTextPlugin('https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.1.1/mapbox-gl-rtl-text.js');
+ * mapboxgl.setRTLTextPlugin('https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.0/mapbox-gl-rtl-text.js');
  * @see [Add support for right-to-left scripts](https://www.mapbox.com/mapbox-gl-js/example/mapbox-gl-rtl-text/)
  */
 

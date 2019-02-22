@@ -73,18 +73,19 @@ export default class extends React.Component {
 
     render() {
         return (
-            <section className='pad4 contain'>
+            <section className='contain'>
                 <h1 className=''>Mapbox GL JS</h1>
                 <div className='pad1y quiet small'>Current version:
                     <span className='round fill-light pad0'><a href='https://github.com/mapbox/mapbox-gl-js/releases'>mapbox-gl.js v{version}</a></span>
                 </div>
                 <div className='prose space-bottom2'>
-                    <p className='space-bottom2 pad1y'>Mapbox GL JS is a JavaScript library that uses WebGL to render interactive maps
-                        from <a href='https://www.mapbox.com/help/define-vector-tiles'>vector tiles</a> and <a
-                            href={prefixUrl('/style-spec')}>Mapbox styles</a>.
-                        It is part of the Mapbox GL ecosystem, which includes <a
-                            href='https://www.mapbox.com/mobile/'>Mapbox Mobile</a>, a compatible renderer written in C++ with bindings
-                        for desktop and mobile platforms. To see what new features our team is working on, take a look at our <a href={prefixUrl('/roadmap')}>roadmap</a>.</p>
+                    <p className='space-bottom2 pad1y'>
+                        Mapbox GL JS is a JavaScript library that uses WebGL to render interactive maps from{' '}<a href='https://www.mapbox.com/help/define-vector-tiles'>vector tiles</a> and{' '}<a href={prefixUrl('/style-spec')}>Mapbox styles</a>.
+                        It is part of the Mapbox GL ecosystem, which includes{' '}<a href='https://www.mapbox.com/mobile/'>Mapbox Mobile</a>,
+                        a compatible renderer written in C++ with bindings
+                        for desktop and mobile platforms. To see what new features our team is working on,
+                        take a look at our <a href={prefixUrl('/roadmap')}>roadmap</a>.
+                    </p>
 
                     <div className='col12 fill-light round pad2 clearfix space-top2'>
                         <div className='space-bottom2 space-left1 space-top1 contain'>
@@ -115,7 +116,7 @@ export default class extends React.Component {
                     <div className='space-bottom1'>To get started, you need to obtain an <a
                         href='https://www.mapbox.com/help/create-api-access-token/'>access token</a> and a <a
                         href='https://www.mapbox.com/help/define-style-url/'>style URL</a>. You can choose from one of our <a
-                        href='https://www.mapbox.com/api-documentation/#styles'>professionally designed styles</a> or create
+                        href='https://www.mapbox.com/api-documentation/maps/#styles'>professionally designed styles</a> or create
                         your own using <a href="https://www.mapbox.com/studio">Mapbox Studio</a>.
                     </div>
 
@@ -136,11 +137,28 @@ export default class extends React.Component {
                             a <a href='https://developer.mozilla.org/en-US/docs/Web/Security/CSP'>Content Security Policy (CSP)</a> to
                             specify security policies for your website. If you do, Mapbox GL JS requires the following CSP
                             directives:</p>
-                        <pre><code>{`child-src blob: ;\nimg-src data: blob: ;`}</code></pre>
+                        <pre><code>{`worker-src blob: ;\nchild-src blob: ;\nimg-src data: blob: ;`}</code></pre>
 
                         <p>Requesting styles from Mapbox or other services will require additional
                             directives. For Mapbox, you can use this <code>connect-src</code> directive:</p>
-                        <pre><code>{`connect-src https://*.tiles.mapbox.com https://api.mapbox.com`}</code></pre>
+                        <pre><code>{`connect-src https://*.tiles.mapbox.com https://api.mapbox.com https://events.mapbox.com`}</code></pre>
+                    </div>
+                    <div>
+                        <h2 className='strong' id='mapbox-css'>Mapbox CSS</h2>
+                        <p>
+                            The CSS referenced in the Quickstart is used to style DOM elements created by Mapbox code.
+                            Without the CSS, elements like Popups and Markers won't work.
+                        </p>
+                        <p>
+                            Including it with a {'<link>'} in the head of the document via the Mapbox CDN is
+                            the simplest and easiest way to provide the CSS,
+                            but it is also bundled in the Mapbox module, meaning that if you have a bundler
+                            that can handle CSS, you can import the CSS from <code>{`mapbox-gl/dist/mapbox-gl.css`}</code>.
+                        </p>
+                        <p>
+                            Note too that if the CSS isn't available by the first render, as soon as the CSS is provided,
+                            the DOM elements that depend on this CSS should recover.
+                        </p>
                     </div>
                 </div>
             </section>

@@ -9,7 +9,7 @@ import FeatureIndex from '../../../src/data/feature_index';
 import { CollisionBoxArray } from '../../../src/data/array_types';
 import { extend } from '../../../src/util/util';
 import Context from '../../../src/gl/context';
-import { serialize } from '../../../src/util/web_worker_transfer';
+import { serialize, deserialize } from '../../../src/util/web_worker_transfer';
 
 test('querySourceFeatures', (t) => {
     const features = [{
@@ -20,7 +20,7 @@ test('querySourceFeatures', (t) => {
 
 
     t.test('geojson tile', (t) => {
-        const tile = new Tile(new OverscaledTileID(1, 0, 1, 1, 1));
+        const tile = new Tile(new OverscaledTileID(3, 0, 2, 1, 2));
         let result;
 
         result = [];
@@ -29,11 +29,15 @@ test('querySourceFeatures', (t) => {
 
         const geojsonWrapper = new GeoJSONWrapper(features);
         geojsonWrapper.name = '_geojsonTileLayer';
-        tile.rawTileData = vtpbf({ layers: { '_geojsonTileLayer': geojsonWrapper }});
+        tile.loadVectorData(
+            createVectorData({rawTileData: vtpbf({ layers: { '_geojsonTileLayer': geojsonWrapper }})}),
+            createPainter()
+        );
 
         result = [];
         tile.querySourceFeatures(result);
         t.equal(result.length, 1);
+        t.deepEqual(result[0].geometry.coordinates[0], [-90, 0]);
         result = [];
         tile.querySourceFeatures(result, {});
         t.equal(result.length, 1);
@@ -132,7 +136,7 @@ test('querySourceFeatures', (t) => {
 
 test('Tile#setMask', (t) => {
 
-    t.test('simple mask', (t)=>{
+    t.test('simple mask', (t) => {
         const tile = new Tile(0, 0, 0);
         const context = new Context(require('gl')(10, 10));
         const a = new OverscaledTileID(1, 0, 1, 0, 0);
@@ -170,8 +174,8 @@ test('Tile#setMask', (t) => {
 
 });
 
-test('Tile#isLessThan', (t)=>{
-    t.test('correctly sorts tiles', (t)=>{
+test('Tile#isLessThan', (t) => {
+    t.test('correctly sorts tiles', (t) => {
         const tiles = [
             new OverscaledTileID(9, 0, 9, 146, 195),
             new OverscaledTileID(9, 0, 9, 147, 195),
@@ -308,8 +312,8 @@ function createRawTileData() {
 function createVectorData(options) {
     const collisionBoxArray = new CollisionBoxArray();
     return extend({
-        collisionBoxArray: serialize(collisionBoxArray),
-        featureIndex: serialize(new FeatureIndex(new OverscaledTileID(1, 0, 1, 1, 1))),
+        collisionBoxArray: deserialize(serialize(collisionBoxArray)),
+        featureIndex: deserialize(serialize(new FeatureIndex(new OverscaledTileID(1, 0, 1, 1, 1)))),
         buckets: []
     }, options);
 }

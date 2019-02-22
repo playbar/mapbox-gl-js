@@ -1,14 +1,16 @@
-const webpack = require('webpack');
+const { webpack } = require('@mapbox/batfish');
+const path = require('path');
 
 module.exports = () => {
     const config = {
         siteBasePath: '/mapbox-gl-js',
-        siteOrigin: 'https://www.mapbox.com',
+        siteOrigin: 'https://docs.mapbox.com',
         pagesDirectory: `${__dirname}/docs/pages`,
+        outputDirectory: path.join(__dirname, '_site'),
         stylesheets: [
             `${__dirname}/docs/components/site.css`,
             `${__dirname}/docs/components/prism_highlight.css`,
-            `${__dirname}/vendor/dotcom-page-shell/page-shell-styles.css`
+            `${__dirname}/vendor/docs-page-shell/page-shell-styles.css`
         ],
         applicationWrapperPath: `${__dirname}/docs/components/application-wrapper.js`,
         webpackLoaders: [
@@ -28,7 +30,7 @@ module.exports = () => {
         ],
         inlineJs: [
             {
-                filename: `${__dirname}/vendor/dotcom-page-shell/page-shell-script.js`
+                filename: `${__dirname}/vendor/docs-page-shell/page-shell-script.js`
             }
         ],
         dataSelectors: {
@@ -37,14 +39,15 @@ module.exports = () => {
                     .filter(({path, frontMatter}) => /\/example\//.test(path) && frontMatter.tags)
                     .map(({frontMatter}) => frontMatter);
             }
-        }
+        },
+        devBrowserslist: false
     };
 
     // Local builds treat the `dist` directory as static assets, allowing you to test examples against the
     // local branch build. Non-local builds ignore the `dist` directory, and examples load assets from the CDN.
-    config.unprocessedPageFiles = ['dist/**/*.*'];
+    config.unprocessedPageFiles = ['**/dist/**/*.*'];
     if (process.env.DEPLOY_ENV !== 'local') {
-        config.ignoreWithinPagesDirectory.push('dist/**/*.*');
+        config.ignoreWithinPagesDirectory.push('**/dist/**/*.*');
     }
 
     return config;

@@ -5,81 +5,21 @@ import CompoundExpression from '../../src/style-spec/expression/compound_express
 // registers compound expressions
 import '../../src/style-spec/expression/definitions/index';
 
+const comparisonSignatures = [{
+    type: 'boolean',
+    parameters: ['value', 'value']
+}, {
+    type: 'boolean',
+    parameters: ['value', 'value', 'collator']
+}];
+
 const types = {
-    '==': [{
-        type: 'boolean',
-        parameters: ['string', 'string']
-    }, {
-        type: 'boolean',
-        parameters: ['number', 'number']
-    }, {
-        type: 'boolean',
-        parameters: ['boolean', 'boolean']
-    }, {
-        type: 'boolean',
-        parameters: ['null', 'null']
-    }, {
-        type: 'boolean',
-        parameters: ['string', 'value']
-    }, {
-        type: 'boolean',
-        parameters: ['number', 'value']
-    }, {
-        type: 'boolean',
-        parameters: ['boolean', 'value']
-    }, {
-        type: 'boolean',
-        parameters: ['null', 'value']
-    }, {
-        type: 'boolean',
-        parameters: ['value', 'string']
-    }, {
-        type: 'boolean',
-        parameters: ['value', 'number']
-    }, {
-        type: 'boolean',
-        parameters: ['value', 'boolean']
-    }, {
-        type: 'boolean',
-        parameters: ['value', 'null']
-    }],
-    '!=': [{
-        type: 'boolean',
-        parameters: ['string', 'string']
-    }, {
-        type: 'boolean',
-        parameters: ['number', 'number']
-    }, {
-        type: 'boolean',
-        parameters: ['boolean', 'boolean']
-    }, {
-        type: 'boolean',
-        parameters: ['null', 'null']
-    }, {
-        type: 'boolean',
-        parameters: ['string', 'value']
-    }, {
-        type: 'boolean',
-        parameters: ['number', 'value']
-    }, {
-        type: 'boolean',
-        parameters: ['boolean', 'value']
-    }, {
-        type: 'boolean',
-        parameters: ['null', 'value']
-    }, {
-        type: 'boolean',
-        parameters: ['value', 'string']
-    }, {
-        type: 'boolean',
-        parameters: ['value', 'number']
-    }, {
-        type: 'boolean',
-        parameters: ['value', 'boolean']
-    }, {
-        type: 'boolean',
-        parameters: ['value', 'null']
-    }],
+    '==': comparisonSignatures,
+    '!=': comparisonSignatures,
+    '<': comparisonSignatures,
+    '<=': comparisonSignatures,
+    '>': comparisonSignatures,
+    '>=': comparisonSignatures,
     string: [{
         type: 'string',
         parameters: ['value']
@@ -118,13 +58,28 @@ const types = {
             'value'
         ]
     }],
-    'to-number': [{
-        type: 'number',
+    object: [{
+        type: 'object',
+        parameters: ['value']
+    }, {
+        type: 'object',
         parameters: ['value', { repeat: [ 'fallback: value' ] }]
+    }],
+    'to-boolean': [{
+        type: 'boolean',
+        parameters: ['value']
     }],
     'to-color': [{
         type: 'color',
         parameters: ['value', { repeat: [ 'fallback: value' ] }]
+    }],
+    'to-number': [{
+        type: 'number',
+        parameters: ['value', { repeat: [ 'fallback: value' ] }]
+    }],
+    'to-string': [{
+        type: 'string',
+        parameters: ['value']
     }],
     at: [{
         type: 'ItemType',
@@ -156,6 +111,24 @@ const types = {
             'stop_input_n: number, stop_output_n: OutputType, ...'
         ]
     }],
+    'interpolate-hcl': [{
+        type: 'Color',
+        parameters: [
+            'interpolation: ["linear"] | ["exponential", base] | ["cubic-bezier", x1, y1, x2, y2 ]',
+            'input: number',
+            'stop_input_1: number, stop_output_1: Color',
+            'stop_input_n: number, stop_output_n: Color, ...'
+        ]
+    }],
+    'interpolate-lab': [{
+        type: 'Color',
+        parameters: [
+            'interpolation: ["linear"] | ["exponential", base] | ["cubic-bezier", x1, y1, x2, y2 ]',
+            'input: number',
+            'stop_input_1: number, stop_output_1: Color',
+            'stop_input_n: number, stop_output_n: Color, ...'
+        ]
+    }],
     length: [{
         type: 'number',
         parameters: ['string | array | value']
@@ -183,6 +156,25 @@ const types = {
     var: [{
         type: 'the type of the bound expression',
         parameters: ['previously bound variable name']
+    }],
+    collator: [{
+        type: 'collator',
+        parameters: [ '{ "case-sensitive": boolean, "diacritic-sensitive": boolean, "locale": string }' ]
+    }],
+    format: [{
+        type: 'formatted',
+        parameters: [
+            'input_1: string, options_1: { "font-scale": number, "text-font": array<string> }',
+            '...',
+            'input_n: string, options_n: { "font-scale": number, "text-font": array<string> }'
+        ]
+    }],
+    'number-format': [{
+        type: 'string',
+        parameters: [
+            'input: number',
+            'options: { "locale": string, "currency": string, "min-fraction-digits": number, "max-fraction-digits": number }'
+        ]
     }]
 };
 
@@ -208,16 +200,17 @@ for (const name in CompoundExpression.definitions) {
 
 delete types['error'];
 
-const expressions = {};
-const expressionGroups = {};
+export const expressions = {};
+export const expressionGroups = {};
 for (const name in types) {
     const spec = ref['expression_name'].values[name];
     expressionGroups[spec.group] = expressionGroups[spec.group] || [];
     expressionGroups[spec.group].push(name);
     expressions[name] = {
-        name: name,
+        name,
         doc: spec.doc,
-        type: types[name]
+        type: types[name],
+        sdkSupport: spec['sdk-support']
     };
 }
 
@@ -228,5 +221,3 @@ function processParameters(params) {
         return [{repeat: [toString(params.type)]}];
     }
 }
-
-module.exports = {expressions, expressionGroups};

@@ -1,19 +1,28 @@
 import { test } from 'mapbox-gl-js-test';
 import Camera from '../../../src/ui/camera';
 import Transform from '../../../src/geo/transform';
+import TaskQueue from '../../../src/util/task_queue';
 import browser from '../../../src/util/browser';
 import fixed from 'mapbox-gl-js-test/fixed';
 const fixedLngLat = fixed.LngLat;
 const fixedNum = fixed.Num;
 
 test('camera', (t) => {
+    function attachSimulateFrame(camera) {
+        const queue = new TaskQueue();
+        camera._requestRenderFrame = (cb) => queue.add(cb);
+        camera._cancelRenderFrame = (id) => queue.remove(id);
+        camera.simulateFrame = () => queue.run();
+        return camera;
+    }
+
     function createCamera(options) {
         options = options || {};
 
         const transform = new Transform(0, 20, options.renderWorldCopies);
         transform.resize(512, 512);
 
-        const camera = new Camera(transform, {})
+        const camera = attachSimulateFrame(new Camera(transform, {}))
             .jumpTo(options);
 
         camera._update = () => {};
@@ -142,7 +151,7 @@ test('camera', (t) => {
             t.end();
         });
 
-        t.test('emits pitch events, preserving eventData', (t)=>{
+        t.test('emits pitch events, preserving eventData', (t) => {
             let started, pitched, ended;
             const eventData = { data: 'ok'};
 
@@ -494,7 +503,7 @@ test('camera', (t) => {
             const camera = createCamera({ zoom: 0 });
             camera.rotateTo(90, { around: [5, 0], duration: 0 });
             t.equal(camera.getBearing(), 90);
-            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 4.999999999999972, lat: 0.000014144426558004852 }));
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 4.999999999999972, lat: 0.000002552471840999715 }));
             t.end();
         });
 
@@ -510,7 +519,7 @@ test('camera', (t) => {
             const camera = createCamera({ zoom: 0 });
             camera.rotateTo(90, { offset: [100, 0], duration: 0 });
             t.equal(camera.getBearing(), 90);
-            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 70.3125, lat: 0.000014144426558004852 }));
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 70.3125, lat: 0.000002552471840999715 }));
             t.end();
         });
 
@@ -675,7 +684,7 @@ test('camera', (t) => {
             const camera = createCamera();
             camera.easeTo({ bearing: 90, offset: [100, 0], duration: 0 });
             t.equal(camera.getBearing(), 90);
-            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 70.3125, lat: 0.0000141444 }));
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 70.3125, lat: 0.000002552471840999715 }));
             t.end();
         });
 
@@ -683,7 +692,7 @@ test('camera', (t) => {
             const camera = createCamera({bearing: 180});
             camera.easeTo({ bearing: 90, offset: [100, 0], duration: 0 });
             t.equal(camera.getBearing(), 90);
-            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: -70.3125, lat: 0.0000141444 }));
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: -70.3125, lat: 0.000002552471840999715 }));
             t.end();
         });
 
@@ -779,21 +788,21 @@ test('camera', (t) => {
 
                     setTimeout(() => {
                         stub.callsFake(() => 30);
-                        camera._updateCamera();
+                        camera.simulateFrame();
                     }, 0);
                 });
 
                 // setTimeout to avoid a synchronous callback
                 setTimeout(() => {
                     stub.callsFake(() => 20);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             });
 
             // setTimeout to avoid a synchronous callback
             setTimeout(() => {
                 stub.callsFake(() => 10);
-                camera._updateCamera();
+                camera.simulateFrame();
             }, 0);
         });
 
@@ -820,11 +829,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -852,11 +861,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -880,18 +889,19 @@ test('camera', (t) => {
             t.end();
         });
 
-        t.test('does not throw when cameras current zoom is sufficiently greater than passed zoom option', (t)=>{
+        t.test('does not throw when cameras current zoom is sufficiently greater than passed zoom option', (t) => {
             const camera = createCamera({zoom: 22, center:[0, 0]});
-            t.doesNotThrow(()=>camera.flyTo({zoom:10, center:[0, 0]}));
+            t.doesNotThrow(() => camera.flyTo({zoom:10, center:[0, 0]}));
             t.end();
         });
 
-        t.test('does not throw when cameras current zoom is above maxzoom and an offset creates infinite zoom out factor', (t)=>{
+        t.test('does not throw when cameras current zoom is above maxzoom and an offset creates infinite zoom out factor', (t) => {
             const transform = new Transform(0, 20.9999, true);
             transform.resize(512, 512);
-            const camera = new Camera(transform, {}).jumpTo({zoom: 21, center:[0, 0]});
+            const camera = attachSimulateFrame(new Camera(transform, {}))
+                .jumpTo({zoom: 21, center:[0, 0]});
             camera._update = () => {};
-            t.doesNotThrow(()=>camera.flyTo({zoom:7.5, center:[0, 0], offset:[0, 70]}));
+            t.doesNotThrow(() => camera.flyTo({zoom:7.5, center:[0, 0], offset:[0, 70]}));
             t.end();
         });
 
@@ -900,6 +910,31 @@ test('camera', (t) => {
             camera.flyTo({ zoom: 3.2, animate: false });
             t.equal(fixedNum(camera.getZoom()), 3.2);
             t.end();
+        });
+
+        t.test('zooms to integer level without floating point errors', (t) => {
+            const camera = createCamera({zoom: 0.6});
+            camera.flyTo({ zoom: 2, animate: false });
+            t.equal(camera.getZoom(), 2);
+            t.end();
+        });
+
+        t.test('Zoom out from the same position to the same position with animation', (t) => {
+            const pos = { lng: 0, lat: 0 };
+            const camera = createCamera({zoom: 20, center: pos});
+            const stub = t.stub(browser, 'now');
+
+            camera.once('zoomend', () => {
+                t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat(pos));
+                t.equal(camera.getZoom(), 19);
+                t.end();
+            });
+
+            stub.callsFake(() => 0);
+            camera.flyTo({ zoom: 19, center: pos, duration: 2 });
+
+            stub.callsFake(() => 3);
+            camera.simulateFrame();
         });
 
         t.test('rotates to specified bearing', (t) => {
@@ -1087,11 +1122,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1122,15 +1157,15 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 10);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 20);
-                    camera._updateCamera();
+                    camera.simulateFrame();
 
                     setTimeout(() => {
                         stub.callsFake(() => 30);
-                        camera._updateCamera();
+                        camera.simulateFrame();
                     }, 0);
                 }, 0);
             }, 0);
@@ -1159,11 +1194,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1191,11 +1226,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 20);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1223,11 +1258,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 20);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1255,11 +1290,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 20);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1287,11 +1322,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1319,11 +1354,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1351,11 +1386,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1382,11 +1417,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1419,11 +1454,11 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 3);
-                camera._updateCamera();
+                camera.simulateFrame();
 
                 setTimeout(() => {
                     stub.callsFake(() => 10);
-                    camera._updateCamera();
+                    camera.simulateFrame();
                 }, 0);
             }, 0);
         });
@@ -1432,7 +1467,7 @@ test('camera', (t) => {
             const transform = new Transform(2, 10, false);
             transform.resize(512, 512);
 
-            const camera = new Camera(transform, {});
+            const camera = attachSimulateFrame(new Camera(transform, {}));
             camera._update = () => {};
 
             camera.on('moveend', () => {
@@ -1450,7 +1485,7 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 10);
-                camera._updateCamera();
+                camera.simulateFrame();
             }, 0);
         });
 
@@ -1458,7 +1493,7 @@ test('camera', (t) => {
             const transform = new Transform(2, 10, false);
             transform.resize(512, 512);
 
-            const camera = new Camera(transform, {});
+            const camera = attachSimulateFrame(new Camera(transform, {}));
             camera._update = () => {};
 
             camera.on('moveend', () => {
@@ -1476,7 +1511,7 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 10);
-                camera._updateCamera();
+                camera.simulateFrame();
             }, 0);
         });
 
@@ -1524,7 +1559,7 @@ test('camera', (t) => {
             camera.panTo([100, 0], {duration: 1});
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
             }, 0);
         });
 
@@ -1546,7 +1581,7 @@ test('camera', (t) => {
             camera.zoomTo(3.2, {duration: 1});
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
             }, 0);
         });
 
@@ -1568,7 +1603,7 @@ test('camera', (t) => {
             camera.rotateTo(90, {duration: 1});
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
             }, 0);
         });
 
@@ -1647,8 +1682,77 @@ test('camera', (t) => {
 
             setTimeout(() => {
                 stub.callsFake(() => 1);
-                camera._updateCamera();
+                camera.simulateFrame();
             }, 0);
+        });
+
+        t.end();
+    });
+
+    t.test('#cameraForBounds', (t) => {
+        t.test('no padding passed', (t) => {
+            const camera = createCamera();
+            const bb = [[-133, 16], [-68, 50]];
+
+            const transform = camera.cameraForBounds(bb);
+            t.deepEqual(fixedLngLat(transform.center, 4), { lng: -100.5, lat: 34.7171 }, 'correctly calculates coordinates for new bounds');
+            t.equal(fixedNum(transform.zoom, 3), 2.469);
+            t.end();
+        });
+
+        t.test('padding number', (t) => {
+            const camera = createCamera();
+            const bb = [[-133, 16], [-68, 50]];
+
+            const transform = camera.cameraForBounds(bb, { padding: 15 });
+            t.deepEqual(fixedLngLat(transform.center, 4), { lng: -100.5, lat: 34.7171 }, 'correctly calculates coordinates for bounds with padding option as number applied');
+            t.equal(fixedNum(transform.zoom, 3), 2.382);
+            t.end();
+        });
+
+        t.test('padding object', (t) => {
+            const camera = createCamera();
+            const bb = [[-133, 16], [-68, 50]];
+
+            const transform = camera.cameraForBounds(bb, { padding: {top: 15, right: 15, bottom: 15, left: 15}, duration: 0 });
+            t.deepEqual(fixedLngLat(transform.center, 4), { lng: -100.5, lat: 34.7171 }, 'correctly calculates coordinates for bounds with padding option as object applied');
+            t.end();
+        });
+
+        t.test('asymetrical padding', (t) => {
+            const camera = createCamera();
+            const bb = [[-133, 16], [-68, 50]];
+
+            const transform = camera.cameraForBounds(bb, { padding: {top: 10, right: 75, bottom: 50, left: 25}, duration: 0 });
+            t.deepEqual(fixedLngLat(transform.center, 4), { lng: -96.5558, lat: 32.0833 }, 'correctly calculates coordinates for bounds with padding option as object applied');
+            t.end();
+        });
+
+        t.test('offset', (t) => {
+            const camera = createCamera();
+            const bb = [[-133, 16], [-68, 50]];
+
+            const transform = camera.cameraForBounds(bb, { offset: [0, 100] });
+            t.deepEqual(fixedLngLat(transform.center, 4), { lng: -100.5, lat: 44.4717 }, 'correctly calculates coordinates for bounds with padding option as object applied');
+            t.end();
+        });
+
+        t.test('offset as object', (t) => {
+            const camera = createCamera();
+            const bb = [[-133, 16], [-68, 50]];
+
+            const transform = camera.cameraForBounds(bb, { offset: { x: 0, y: 100 } });
+            t.deepEqual(fixedLngLat(transform.center, 4), { lng: -100.5, lat: 44.4717 }, 'correctly calculates coordinates for bounds with padding option as object applied');
+            t.end();
+        });
+
+        t.test('offset and padding', (t) => {
+            const camera = createCamera();
+            const bb = [[-133, 16], [-68, 50]];
+
+            const transform = camera.cameraForBounds(bb, { padding: {top: 10, right: 75, bottom: 50, left: 25}, offset: [0, 100] });
+            t.deepEqual(fixedLngLat(transform.center, 4), { lng: -96.5558, lat: 44.4189 }, 'correctly calculates coordinates for bounds with padding option as object applied');
+            t.end();
         });
 
         t.end();
@@ -1686,6 +1790,51 @@ test('camera', (t) => {
 
         t.end();
     });
+
+    t.test('#fitScreenCoordinates', (t) => {
+        t.test('bearing 225', (t) => {
+            const camera = createCamera();
+            const p0 = [128, 128];
+            const p1 = [256, 256];
+            const bearing = 225;
+
+            camera.fitScreenCoordinates(p0, p1, bearing, {duration:0});
+            t.deepEqual(fixedLngLat(camera.getCenter(), 4), { lng: -45, lat: 40.9799 }, 'centers, rotates 225 degrees, and zooms based on screen coordinates');
+            t.equal(fixedNum(camera.getZoom(), 3), 1.5);
+            t.equal(camera.getBearing(), -135);
+            t.end();
+        });
+
+        t.test('bearing 0', (t) => {
+            const camera = createCamera();
+
+            const p0 = [128, 128];
+            const p1 = [256, 256];
+            const bearing = 0;
+
+            camera.fitScreenCoordinates(p0, p1, bearing, {duration:0});
+            t.deepEqual(fixedLngLat(camera.getCenter(), 4), { lng: -45, lat: 40.9799 }, 'centers and zooms in based on screen coordinates');
+            t.equal(fixedNum(camera.getZoom(), 3), 2);
+            t.equal(camera.getBearing(), 0);
+            t.end();
+        });
+
+        t.test('inverted points', (t) => {
+            const camera = createCamera();
+            const p1 = [128, 128];
+            const p0 = [256, 256];
+            const bearing = 0;
+
+            camera.fitScreenCoordinates(p0, p1, bearing, {duration:0});
+            t.deepEqual(fixedLngLat(camera.getCenter(), 4), { lng: -45, lat: 40.9799 }, 'centers and zooms based on screen coordinates in opposite order');
+            t.equal(fixedNum(camera.getZoom(), 3), 2);
+            t.equal(camera.getBearing(), 0);
+            t.end();
+        });
+
+        t.end();
+    });
+
 
     t.end();
 });
